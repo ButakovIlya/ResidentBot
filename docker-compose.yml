@@ -1,0 +1,14 @@
+version: "3.3"
+
+services:
+  bot:
+    build: .
+    restart: always
+    volumes:
+      - static-data:/vol/static
+      - media-data:/vol/media
+
+
+volumes:
+  static-data:
+  media-data:

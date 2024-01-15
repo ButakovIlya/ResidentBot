@@ -1,0 +1,11 @@
+__pycache__/
+venv/
+
+*.log
+logs/telegram_bot.log
+logs/
+media/
+
+# IDEs
+.idea/
+.vscode/

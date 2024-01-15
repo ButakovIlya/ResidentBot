@@ -1,0 +1,12 @@
+{
+  "residents_total": 100,
+  "registered_residents": 70,
+  "new_residents_this_month": 5,
+  "total_invoices_this_month": 150,
+  "paid_invoices_this_month": 120,
+  "unpaid_invoices_this_month": 30,
+  "open_issues": 20,
+  "issues_in_progress": 10,
+  "closed_issues_this_month": 15,
+  "employees_total": 5
+}
