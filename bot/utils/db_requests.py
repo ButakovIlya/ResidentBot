@@ -106,17 +106,17 @@ def get_all_polls() -> list[Poll]:
     finally:
         Poll.close_session()
 
-def get_all_active_polls() -> list[Poll]:
+def get_all_active_polls(user_id) -> list[Poll]:
     try:
         Poll.set_session(Session())
-        return Poll.get_all_active()
+        return Poll.get_all_active(user_id)
     finally:
         Poll.close_session()
 
-def get_all_inactive_polls() -> list[Poll]:
+def get_all_inactive_polls(user_id) -> list[Poll]:
     try:
         Poll.set_session(Session())
-        return Poll.get_all_inactive()
+        return Poll.get_all_inactive(user_id)
     finally:
         Poll.close_session()
 

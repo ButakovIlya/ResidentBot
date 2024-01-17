@@ -13,7 +13,8 @@ emploee_menu_markup = ReplyKeyboardMarkup(
             KeyboardButton(text="Создать опрос")
         ],
         [
-            KeyboardButton(text="Активные опросы")
+            KeyboardButton(text="Активные опросы"),
+            KeyboardButton(text="Завершенные опросы"),
         ]
     ]
 )

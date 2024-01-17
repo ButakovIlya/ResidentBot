@@ -12,12 +12,8 @@ main_menu_markup = ReplyKeyboardMarkup(
             KeyboardButton(text="Профиль")
         ],
         [
-            KeyboardButton(text="Проверить заявки"),
+            KeyboardButton(text="Проверить мои заявки"),
             KeyboardButton(text="Передача показаний")
-        ],
-        [
-            KeyboardButton(text="Активные опросы"),
-            KeyboardButton(text="Завершенные опросы"),
         ]
     ]
 )

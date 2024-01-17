@@ -1153,9 +1153,9 @@ class UtilityBill(Base):
 class Poll(Base):
     __tablename__ = 'poll'
 
-    poll_id = Column(BigInteger,  primary_key=True, nullable=True)
-    poll_tg_id = Column(BigInteger, nullable=True)
+    poll_tg_id = Column(BigInteger, primary_key=True, nullable=True)
     message_id = Column(BigInteger, nullable=True)
+    user_id = Column(BigInteger, nullable=True)
     tittle = Column(String, nullable=True)
     is_closed = Column(Boolean, nullable=False)
 
@@ -1182,19 +1182,19 @@ class Poll(Base):
             logger.error(f"Не удалось получить все опросы: {str(e)}")
 
     @classmethod
-    def get_all_active(cls):
-        # try:
-            session = cls.get_session()
-            all_pols = session.query(cls).filter_by(is_closed=0)
-            return all_pols
-        # except Exception as e:
-        #     logger.error(f"Не удалось получить все активные опросы: {str(e)}")
-
-    @classmethod
-    def get_all_inactive(cls):
+    def get_all_active(cls, user_id):
         try:
             session = cls.get_session()
-            all_pols = session.query(cls).filter_by(is_closed=1)
+            all_pols = session.query(cls).filter_by(is_closed=0, user_id=user_id).all()
+            return all_pols
+        except Exception as e:
+            logger.error(f"Не удалось получить все активные опросы: {str(e)}")
+
+    @classmethod
+    def get_all_inactive(cls, user_id):
+        try:
+            session = cls.get_session()
+            all_pols = session.query(cls).filter_by(is_closed=1, user_id=user_id).all()
             return all_pols
         except Exception as e:
             logger.error(f"Не удалось получить все завершенные опросы: {str(e)}")

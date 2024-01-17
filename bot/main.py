@@ -40,7 +40,6 @@ from utils.db_requests import *
 from utils.media_processing import media_processing
 from utils.folders_checking import create_directories
 
-import aiomysql
 
 logging.basicConfig(level=logging.INFO)
 load_dotenv()
@@ -217,7 +216,7 @@ async def show_news_details(callback_query: types.CallbackQuery, state: FSMConte
     await bot.delete_message(user_id, message_id)
 
 
-@main_router.message(lambda message: message.text == "Проверить заявки")
+@main_router.message(lambda message: message.text == "Проверить мои заявки")
 async def check_tikects(message: types.Message, state: FSMContext):
     await check_tikects_handler(message.from_user.id, bot, state)
 
@@ -270,7 +269,7 @@ async def development_mode(message: types.Message):
 @employer_router.message(lambda message: message.text == "Вернуться назад")
 async def return_to_main_menu(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(Lang.strings["ru"]["return_to_main_menu"], reply_markup=emploee_menu_markup)
+    await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
 
 @employer_router.message(lambda message: message.text == "Статистика")
 async def show_house_statistics(message: types.Message):
@@ -397,8 +396,8 @@ async def set_poll(message: types.Message, state:FSMContext):
 
 @employer_router.message(PollState.WaitingForPoll)
 async def start_command(message: types.Message, state:FSMContext):
-
-    if message:
+    print(message.__dict__)
+    if message.poll:
         all_options = message.poll.options
         options = []
         for option in all_options:
@@ -415,7 +414,7 @@ async def start_command(message: types.Message, state:FSMContext):
             text="Пожалуйста, не удаляйте сообщение с опросом, иначе он перестанет быть доступным для остальных пользователей!"
         )
 
-        print(poll.__dict__)
+        # print(poll.__dict__)
         for user_id in get_all_employers_ids():
             try:
                 if get_user(user_id).is_active:
@@ -437,10 +436,17 @@ async def start_command(message: types.Message, state:FSMContext):
         create_poll(poll_data)
 
         await state.clear()
+    else:
+        await bot.send_message(
+            chat_id=message.from_user.id,
+            text="Ошибка, Вы прикрепили не опрос!",
+            reply_markup=emploee_menu_markup
+        )
+        return
 
 @employer_router.message(lambda message: message.text == "Активные опросы")
 async def look_all_active_polls(message: types.Message):
-    all_polls = get_all_active_polls()
+    all_polls = get_all_active_polls(message.from_user.id)
     if list(all_polls):
         keyboard_buttons = []
 
@@ -456,7 +462,7 @@ async def look_all_active_polls(message: types.Message):
     
 @employer_router.message(lambda message: message.text == "Завершенные опросы")
 async def look_all_inactive_polls(message: types.Message):
-    all_polls = get_all_inactive_polls()
+    all_polls = get_all_inactive_polls(message.from_user.id)
     if list(all_polls):
         keyboard_buttons = []
 
