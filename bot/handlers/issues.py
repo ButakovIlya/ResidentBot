@@ -21,6 +21,6 @@ async def show_issues_handler(bot, query, state):
 
         news_markup = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-        await bot.send_message(query.from_user.id, Lang.strings["ru"]["news_select_reply"], reply_markup=news_markup, parse_mode=ParseMode.MARKDOWN)
+        await bot.send_message(query.from_user.id, Lang.strings["ru"]["ticket_select_reply"], reply_markup=news_markup, parse_mode=ParseMode.MARKDOWN)
     else:
-        await bot.send_message(query.from_user.id, Lang.strings["ru"]["news_select_error"])
+        await bot.send_message(query.from_user.id, Lang.strings["ru"]["ticket_select_error"])

@@ -6,7 +6,7 @@ class Lang:
             "news_select_reply": "Выберите нужную вам новость:",
             "news_select_error": "К сожалению, новостей нет.",
             "ticket_select_reply": "Выберите нужную вам заявку:",
-            "ticket_select_error": "К сожалению, заявок нет.",
+            "ticket_select_error": "На данный момент заявок нет.",
             "news_open_info_error": "Ошибка !\n\nК сожалению, данной новости не существует.",
             "ticket_open_info_error": "Ошибка !\n\nК сожалению, данной заявки не существует.",
             "profile_error": "Ошибка ! Профиль не найден.",

@@ -6,7 +6,7 @@ import datetime
 import logging
 
 # переделай на локальную
-engine = create_engine('mysql+mysqlconnector://root:root@localhost/resident_db')
+engine = create_engine('mysql+mysqlconnector://root:root@89.111.172.79/resident_db')
 
 # Создайте сессию для взаимодействия с базой данных
 Session = sessionmaker(bind=engine)
@@ -66,6 +66,7 @@ class User(Base):
     image = Column(String)
     is_confirmed = Column(Boolean)
     is_registration_reviewed = Column(Boolean)
+    is_active = Column(Boolean)
     # Определите внешний ключ
     role_id = Column(Integer, ForeignKey('user_role.role_id'))
     
@@ -1152,9 +1153,12 @@ class UtilityBill(Base):
 class Poll(Base):
     __tablename__ = 'poll'
 
-    poll_tg_id = Column(BigInteger,  primary_key=True, nullable=True)
+    poll_id = Column(BigInteger,  primary_key=True, nullable=True)
+    poll_tg_id = Column(BigInteger, nullable=True)
     message_id = Column(BigInteger, nullable=True)
     tittle = Column(String, nullable=True)
+    is_closed = Column(Boolean, nullable=False)
+
 
     _session = None  
     def __init__(self, **user_data):
@@ -1176,6 +1180,24 @@ class Poll(Base):
             return all_pols
         except Exception as e:
             logger.error(f"Не удалось получить все опросы: {str(e)}")
+
+    @classmethod
+    def get_all_active(cls):
+        # try:
+            session = cls.get_session()
+            all_pols = session.query(cls).filter_by(is_closed=0)
+            return all_pols
+        # except Exception as e:
+        #     logger.error(f"Не удалось получить все активные опросы: {str(e)}")
+
+    @classmethod
+    def get_all_inactive(cls):
+        try:
+            session = cls.get_session()
+            all_pols = session.query(cls).filter_by(is_closed=1)
+            return all_pols
+        except Exception as e:
+            logger.error(f"Не удалось получить все завершенные опросы: {str(e)}")
 
     @classmethod
     def get_by_id(cls, poll_tg_id):

@@ -6,7 +6,8 @@ from typing import List, Optional
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, LabeledPrice
+from aiogram.types import CallbackQuery, Message, LabeledPrice, Poll as AioPoll, PollOption
+
 from dotenv import load_dotenv
 
 from StateGroups.NewsState import *
@@ -396,22 +397,41 @@ async def set_poll(message: types.Message, state:FSMContext):
 
 @employer_router.message(PollState.WaitingForPoll)
 async def start_command(message: types.Message, state:FSMContext):
-    if message.poll is None:
-        await bot.send_message(message.from_user.id, "Вы не создали опрос. Пожалуйста, создайте и отправьте опрос.",  reply_markup=return_back_button_markup)
-        await state.set_state(PollState.WaitingForPoll)
-    else:
-        chats = [970311146]
-        for user_id in chats:
-            await bot.forward_message(
-                chat_id=user_id,
-                from_chat_id=message.from_user.id,
-                message_id=message.message_id
-            )
+
+    if message:
+        all_options = message.poll.options
+        options = []
+        for option in all_options:
+            options.append(option.text)
+        question = message.poll.question
+
+        poll = await bot.send_poll(
+            chat_id=message.from_user.id,
+            question=question,  
+            options=options,  
+        )
+        await bot.send_message(
+            chat_id=message.from_user.id,
+            text="Пожалуйста, не удаляйте сообщение с опросом, иначе он перестанет быть доступным для остальных пользователей!"
+        )
+
+        print(poll.__dict__)
+        for user_id in get_all_employers_ids():
+            try:
+                if get_user(user_id).is_active:
+                    await bot.forward_message(
+                        chat_id=user_id,
+                        from_chat_id=poll.chat.id,
+                        message_id=poll.message_id
+                    )
+            except Exception:
+                update_user_by_id(user_id, {'is_active':0})
+                logger.warning(f"Чат с id={user_id} недоступен")
 
         poll_data = {
-            "poll_tg_id": message.poll.id,
-            "message_id": message.message_id,
-            "tittle": message.poll.question
+            'poll_tg_id':poll.poll.id,
+            "message_id": poll.message_id,
+            "tittle": poll.poll.question
         }
         
         create_poll(poll_data)
@@ -419,9 +439,9 @@ async def start_command(message: types.Message, state:FSMContext):
         await state.clear()
 
 @employer_router.message(lambda message: message.text == "Активные опросы")
-async def look_all_polls(message: types.Message):
-    all_polls = get_all_polls()
-    if all_polls:
+async def look_all_active_polls(message: types.Message):
+    all_polls = get_all_active_polls()
+    if list(all_polls):
         keyboard_buttons = []
 
         for poll in all_polls[:6]:
@@ -434,6 +454,21 @@ async def look_all_polls(message: types.Message):
     else:
         await bot.send_message(message.from_user.id, "К сожалению, активных опросов нет")
     
+@employer_router.message(lambda message: message.text == "Завершенные опросы")
+async def look_all_inactive_polls(message: types.Message):
+    all_polls = get_all_inactive_polls()
+    if list(all_polls):
+        keyboard_buttons = []
+
+        for poll in all_polls[:6]:
+            poll_button = types.InlineKeyboardButton(text=poll.tittle, callback_data=f"poll_{poll.poll_tg_id}")
+            keyboard_buttons.append([poll_button])
+        
+        keyboard_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await bot.send_message(message.from_user.id, "Выберите нужный вам опрос.\n\nЧтобы закрыть опрос, откройте информацию о нем и нажмите кнопку 'Закрыть опрос'", reply_markup=keyboard_markup)
+    else:
+        await bot.send_message(message.from_user.id, "К сожалению, завершенных опросов нет")
 
 @last_router.message()
 async def unknown_message(message: types.Message):

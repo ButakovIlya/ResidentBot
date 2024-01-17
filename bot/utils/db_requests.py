@@ -8,6 +8,13 @@ def get_user(tg_id: int) -> User:
     finally:
         User.close_session()
 
+def update_user_by_id(tg_id: int, updated_data:dict) -> None:
+    try:
+        User.set_session(Session())
+        User.update_user_by_id(tg_id, updated_data)
+    finally:
+        User.close_session()
+
 def delete_user_by_id(tg_id: int) -> None:
     try:
         User.set_session(Session())
@@ -99,6 +106,19 @@ def get_all_polls() -> list[Poll]:
     finally:
         Poll.close_session()
 
+def get_all_active_polls() -> list[Poll]:
+    try:
+        Poll.set_session(Session())
+        return Poll.get_all_active()
+    finally:
+        Poll.close_session()
+
+def get_all_inactive_polls() -> list[Poll]:
+    try:
+        Poll.set_session(Session())
+        return Poll.get_all_inactive()
+    finally:
+        Poll.close_session()
 
 def get_poll_by_id(poll_id) -> Poll:
     try:
