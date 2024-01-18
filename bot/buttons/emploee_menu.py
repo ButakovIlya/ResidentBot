@@ -6,7 +6,7 @@ emploee_menu_markup = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(text="Заявки жителей"),
-            KeyboardButton(text="Статистика")
+            KeyboardButton(text="Новости")
         ],
         [
             KeyboardButton(text="Создать новость"),

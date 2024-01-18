@@ -35,7 +35,7 @@ from middleware.verification import RegistrationMiddleware
 from utils.all_employees_messenger import all_employees_messenger
 from utils.all_users_messenger import all_confirmed_users_messenger
 from utils.date_time import get_current_date_and_time
-from utils.db_image_loader import send_ticket_images_to_user, send_news_images_to_user, send_ticket_images_to_employer
+from utils.db_image_loader import send_ticket_images_to_user, send_news_images_to_user, send_ticket_images_to_employer, send_news_images_to_employer
 from utils.db_requests import *
 from utils.media_processing import media_processing
 from utils.folders_checking import create_directories
@@ -173,7 +173,8 @@ async def user_profile(message: types.Message):
 
 @main_router.message(lambda message: message.text == "Новости")
 async def get_news(message: types.Message, state: FSMContext):
-    await get_news_handler(message.from_user.id, bot, state)
+    await get_news_for_user(message.from_user.id, bot, state)
+
 
 
 @main_router.callback_query(lambda c: c.data in ["prev_page", "next_page"])
@@ -191,7 +192,7 @@ async def change_news_page(callback_query: types.CallbackQuery, state: FSMContex
 
     await state.set_state(current_page)
 
-    await get_news_handler(user_id, bot, state)
+    await get_news_for_user(user_id, bot, state)
 
     await bot.delete_message(user_id, message_id)
 
@@ -215,6 +216,41 @@ async def show_news_details(callback_query: types.CallbackQuery, state: FSMConte
 
     await bot.delete_message(user_id, message_id)
 
+@employer_router.callback_query(lambda c: c.data.startswith("edit_news_"))
+async def edit_news(callback_query: types.CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    message_id = callback_query.message.message_id
+    news_id = int(callback_query.data.split("_")[2])
+    news_item = get_news_by_id(news_id)
+
+    # fix only photo 
+
+    if news_item:
+        news_details = f"Заголовок: {news_item.topic}\n\n{news_item.body}"
+
+        await send_news_images_to_employer(news_item, bot, user_id, news_details, news_item)
+       
+    else:
+        await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
+
+    await bot.delete_message(user_id, message_id)
+
+
+@employer_router.callback_query(lambda c: c.data.startswith("delete_news_"))
+async def delete_news(callback_query: types.CallbackQuery, state: FSMContext):
+    from_user_id = callback_query.from_user.id
+    message_id = callback_query.message.message_id
+    news_id = int(callback_query.data.split("_")[2])
+    news_item = get_news_by_id(news_id)
+
+    if news_item:
+        delete_news_by_id(news_id)
+        await bot.send_message(from_user_id, f"Новость успешно удалена.", reply_markup=emploee_menu_markup)
+
+    else:
+        await bot.send_message(from_user_id, Lang.strings["ru"]["news_delete_error"])
+
+    await bot.delete_message(from_user_id, message_id)
 
 @main_router.message(lambda message: message.text == "Проверить мои заявки")
 async def check_tikects(message: types.Message, state: FSMContext):
@@ -339,7 +375,7 @@ async def process_message(message: types.Message, state: FSMContext,
     }
     create_new_news(news_data)
 
-    message_text = f'Появилась новость: <b>{topic}</b>\n{caption}'
+    message_text = f'Появилась новость: {topic}\n{caption}'
     await all_confirmed_users_messenger(files_id, message_text, bot)
 
     await state.clear()
@@ -390,7 +426,7 @@ async def change_ticket_page(callback_query: types.CallbackQuery, state: FSMCont
 
 
 @employer_router.callback_query(lambda c: c.data.startswith("issues_"))
-async def show_news_details(callback_query: types.CallbackQuery, state: FSMContext):
+async def show_issues_details(callback_query: types.CallbackQuery, state: FSMContext):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
 

@@ -27,6 +27,7 @@ class Lang:
             "user_to_ban_error": "Ошибка, пользователя для бана не найден.",
             "close_ticket_error": "Ошибка, заявка для закрытия не найдена.",
             "cancel_ticket_error": "Ошибка, заявка для отмены не найдена.",
+            "news_delete_error":"Ошибка, новость для удаления не найдена.",
         },
         "en": {
             "start_message": "Hello! This is a bot that allows..."

@@ -57,6 +57,13 @@ def get_news_by_id(news_id: int) -> News:
     finally:
         News.close_session()
 
+def delete_news_by_id(news_id: int) -> News:
+    try:
+        News.set_session(Session())
+        return News.delete_by_id(news_id)
+    finally:
+        News.close_session()
+
 def get_ticket_by_id(ticket_id: int) -> Ticket:
     try:
         Ticket.set_session(Session())

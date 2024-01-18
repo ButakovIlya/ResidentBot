@@ -21,6 +21,34 @@ async def send_news_images_to_user(object, bot, user_id, text):
     else:
         await bot.send_message(user_id, text)
 
+async def send_news_images_to_employer(object, bot, user_id, text, news_item):
+
+    object_image = None
+
+    if object.images:
+        if not isinstance(object.images, str):
+            object_image = object.images
+        else:
+            object_image = json.loads(object.images.replace("'", '"'))
+
+    news_buttons = []
+    delete_news_button = InlineKeyboardButton(text=f"Удалить новость", callback_data=f"delete_news_{news_item.news_id}")
+    news_buttons.append([delete_news_button])
+    keyboard_markup = InlineKeyboardMarkup(inline_keyboard=news_buttons)
+
+    if object_image:
+        photos = []
+        for image in object_image:
+            for k, v in image.items():
+                photos.append(InputMediaPhoto(media=v, caption=text if k == "image1" else None))
+
+        await bot.send_media_group(user_id, photos)
+        await bot.send_message(user_id, "Выберите нужное для взаимодействия с новостью", reply_markup=keyboard_markup)
+    else:
+        await bot.send_message(user_id, text)
+        await bot.send_message(user_id, "Выберите нужное для взаимодействия с новостью", reply_markup=keyboard_markup)
+
+
 async def send_ticket_images_to_user(object, bot, user_id, text, issue_item):
 
     object_image = None

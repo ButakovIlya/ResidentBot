@@ -19,9 +19,9 @@ async def all_confirmed_users_messenger(files_id, caption, bot):
                     InputMediaPhoto(media=file_id, caption=caption if idx == 0 else None)
                     for idx, file_id in enumerate(files_id)
                 ]
-                await bot.send_media_group(tg_id, photos, parse_mode=enums.ParseMode.HTML)
+                await bot.send_media_group(tg_id, photos)
             else:
-                await bot.send_message(tg_id, caption, parse_mode=enums.ParseMode.HTML)
+                await bot.send_message(tg_id, caption)
 
         except Exception as e:
             print(f"Произошла ошибка при отправке в чат {tg_id}: {e}")
