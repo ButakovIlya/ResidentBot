@@ -29,6 +29,20 @@ def get_all_tickets() -> list[Ticket]:
     finally:
         Ticket.close_session()
 
+def get_solved_tickets() -> list[Ticket]:
+    try:
+        Ticket.set_session(Session())
+        return Ticket.get_solved()
+    finally:
+        Ticket.close_session()
+
+def get_unsolved_tickets() -> list[Ticket]:
+    try:
+        Ticket.set_session(Session())
+        return Ticket.get_unsolved()
+    finally:
+        Ticket.close_session()
+
 def get_all_news() -> list[News]:
     try:
         News.set_session(Session())
@@ -253,5 +267,33 @@ def get_employer_role_by_id(role_id: int) -> EmployerRole:
     finally:
         EmployerRole.close_session()
 
+def ban_user_by_id(tg_id: int) -> Boolean:
+    try:
+        User.set_session(Session())
+        User.ban(tg_id)
+        return True
+    except Exception:
+        return False
+    finally:
+        User.close_session()
+
+def close_ticket_by_id(ticket_id: int) -> Boolean:
+    try:
+        Ticket.set_session(Session())
+        Ticket.get_by_id(ticket_id).delete()
+        return True
+    except Exception:
+        return False
+    finally:
+        Ticket.close_session()
     
 
+def delete_ticket_by_id(ticket_id: int) -> Boolean:
+    try:
+        Ticket.set_session(Session())
+        Ticket.delete_ticket(ticket_id)
+        return True
+    except Exception:
+        return False
+    finally:
+        Ticket.close_session()

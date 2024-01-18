@@ -67,9 +67,12 @@ class User(Base):
     is_confirmed = Column(Boolean)
     is_registration_reviewed = Column(Boolean)
     is_active = Column(Boolean)
+    is_banned = Column(Boolean)
+    
     # Определите внешний ключ
     role_id = Column(Integer, ForeignKey('user_role.role_id'))
-    
+    username = Column(String)
+    tg_link = Column(String)
     # Определите связь с таблицей user_role
     role = relationship('UserRole')
 
@@ -202,6 +205,25 @@ class User(Base):
             return None
 
 
+    @classmethod
+    def ban(cls, telegram_id):
+        logger.info("Запрос на бан пользователя по id")
+        try:
+            session = cls.get_session()
+            user = session.query(cls).filter_by(telegram_id=telegram_id).one_or_none()
+
+            if user:
+                user.is_banned = 1
+                session.commit()  
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error("Ошибка при бане пользователя: " + str(e))
+            return False
+        finally:
+            session.close()  
+        
     @classmethod
     def exists(cls, telegram_id):
         logger.info("Запрос на проверку существования пользователя по id")
@@ -696,6 +718,58 @@ class Ticket(Base):
             logger.error(f"Не удалось получить все билеты: {str(e)}")
 
     @classmethod
+    def get_solved(cls):
+        try:
+            logger.info(f"Запрос на получение всех закрытых заявок")
+            query = text(f"""
+                          SELECT 
+                                ticket.ticket_id,
+                                ticket_type.type,
+                                ticket.user_id,
+                                ticket.is_solved,
+                                ticket.date,
+                                ticket.time,
+                                ticket.details,
+                                ticket.images
+                            FROM
+                                resident_db.ticket
+                                    JOIN
+                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                            WHERE
+                                ticket.is_solved = 1
+                         """)
+            all_tickets = cls.get_session().execute(query).fetchall()
+            return all_tickets
+        except Exception as e:
+            logger.error(f"Не удалось получить все закрытые заявки: {str(e)}")
+    
+    @classmethod
+    def get_unsolved(cls):
+        try:
+            logger.info(f"Запрос на получение всех открытых заявок")
+            query = text(f"""
+                          SELECT 
+                                ticket.ticket_id,
+                                ticket_type.type,
+                                ticket.user_id,
+                                ticket.is_solved,
+                                ticket.date,
+                                ticket.time,
+                                ticket.details,
+                                ticket.images
+                            FROM
+                                resident_db.ticket
+                                    JOIN
+                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                            WHERE
+                                ticket.is_solved = 0
+                         """)
+            all_tickets = cls.get_session().execute(query).fetchall()
+            return all_tickets
+        except Exception as e:
+            logger.error(f"Не удалось получить все открытые заявки: {str(e)}")
+    
+    @classmethod
     def get_all_by_user_id_and_status(cls, telegram_id:int, is_solved:int):
         try:
             logger.info(f"Запрос на получение всех заявок пользователя c id='{telegram_id}' со статусом '{is_solved}'")
@@ -749,11 +823,16 @@ class Ticket(Base):
                                 ticket.date,
                                 ticket.time,
                                 ticket.details,
-                                ticket.images
+                                ticket.images,
+                                user.username,
+                                user.telegram_id,  
+                                user.tg_link  
                             FROM
                                 resident_db.ticket
                                     JOIN
                                 resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                    JOIN
+                                resident_db.user ON ticket.user_id = user.telegram_id
                             WHERE ticket_id = {ticket_id}
                          """)
             all_tickets = cls.get_session().execute(query).one()
@@ -774,6 +853,38 @@ class Ticket(Base):
             return False
         except Exception as e:
             logger.error(f"Не удалось обновить билет по ID: {str(e)}")
+
+    @classmethod
+    def close_ticket(cls, ticket_id):
+        logger.info(f"Запрос на закрытие заявки с id = {ticket_id}")
+        try:
+            session = cls.get_session()
+            ticket = session.query(cls).filter_by(ticket_id=ticket_id).one_or_none()
+
+            if ticket:
+                ticket.is_solved = 1
+                session.commit()
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"Не удалось закрыть заявку с id = {ticket_id}: {str(e)}")
+
+    @classmethod
+    def delete_ticket(cls, ticket_id):
+        logger.info(f"Запрос на удаление заявки с id = {ticket_id}")
+        try:
+            session = cls.get_session()
+            ticket = session.query(cls).filter_by(ticket_id=ticket_id).one_or_none()
+
+            if ticket:
+                ticket.delete()
+                session.commit()
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"Не удалось удалить заявку с id = {ticket_id}: {str(e)}")
 
     @classmethod
     def create_ticket(cls, ticket_data):
