@@ -9,3 +9,9 @@ def is_valid_name(name: str) -> bool:
     # возможны двойное имя и двойная фамилия, которые указываются через дефис/минус/короткое тире/длинное тире
     regex = re.compile(r'^([A-Za-zА-Яа-яЁё]{2,35}([—–−-][A-Za-zА-Яа-яЁё]{2,35})?\s){2}[A-Za-zА-Яа-яЁё]{2,35}$')
     return bool(re.fullmatch(regex, name))
+
+
+def is_valid_phone_number(number: str) -> bool:
+    # Паттерн для российского номера телефона
+    regex = re.compile(r'^\+7[0-9]{10}$')
+    return bool(re.fullmatch(regex, number))

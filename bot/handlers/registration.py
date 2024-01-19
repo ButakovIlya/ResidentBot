@@ -8,7 +8,7 @@ from buttons.main_menu import main_menu_markup
 from buttons.registration import *
 from dict.role_dict import *
 from utils.db_requests import *
-from utils.validation import is_valid_name, is_valid_email
+from utils.validation import is_valid_name, is_valid_email, is_valid_phone_number
 
 registration_router = Router()
 
@@ -115,12 +115,12 @@ async def empl_email_selected(message: types.Message, state: FSMContext):
 @registration_router.message(RegistrationEmplState.full_name)
 async def empl_phone_number_selected(message: types.Message, state: FSMContext):
     tg_id = message.from_user.id
-
+    phone_number = message.text
     # если отправили чужой контакт или сообщение не того типа
     if not hasattr(message.contact, 'phone_number') or message.contact.user_id != message.from_user.id:
         await message.answer('Некорретный ввод. Кнопка ниже')
         return
-
+    
     update_employer(tg_id, {"phone_number": message.contact.phone_number})
     await state.set_state(RegistrationEmplState.phone_number)
     await message.answer('Введите ваш адрес электронной почты.')
@@ -145,17 +145,6 @@ async def empl_full_name_selected(message: types.Message, state: FSMContext):
                              "Укажите ваши фамилию, имя и отчество в следующем формате: <i>Иванов Иван Иванович</i>",
                              parse_mode=enums.ParseMode.HTML)
 
-
-@registration_router.message(RegistrationState.apartment)
-async def residential_complex_selected(message: types.Message, state: FSMContext):
-    tg_id = message.from_user.id
-    residential_complex = message.text
-
-    update_user(tg_id, {"residential_complex": residential_complex})
-    await state.clear()
-
-    await send_verification_request(tg_id, message.bot)
-    await message.answer("Регистрация завершена. Данные отправлены на верификацию сотруднику управляющей компании")
 
 
 async def send_verification_request(unverified_user_tg_id: int, bot):
@@ -227,10 +216,50 @@ async def apartment_selected(message: types.Message, state: FSMContext):
         return
 
     update_user(tg_id, {"apartment": apartment})
+
+    all_complexes = get_all_residentials()
+
+    buttons = [
+        [KeyboardButton(text=complex.name)]
+        for complex in all_complexes
+    ]
+    complex_markup = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+
     await state.set_state(RegistrationState.apartment)
-    await message.answer("Теперь введите название жилого комплекса.")
+    await message.answer("Теперь выберете ваш жилой комплекс.", reply_markup=complex_markup)
 
 
+@registration_router.message(RegistrationState.apartment)
+async def residential_complex_selected(message: types.Message, state: FSMContext):
+    tg_id = message.from_user.id
+    username = message.from_user.username
+    residential_complex = message.text
+
+    if residential_complex in [complex.name for complex in get_all_residentials()]:
+        residential_complex_id = get_residential_id_by_name(residential_complex)
+
+        if residential_complex_id:
+            update_user(tg_id, {
+                                    'residential_complex_id':residential_complex_id,
+                                    'username': username,
+                                    'tg_link': 'https://t.me/' + username,
+                                })
+            await state.clear()
+
+            await send_verification_request(tg_id, message.bot)
+            await message.answer("Регистрация завершена. Данные отправлены на верификацию сотруднику управляющей компании")
+
+    else: 
+        all_complexes = get_all_residentials()
+        buttons = [
+            [KeyboardButton(text=complex.name)]
+            for complex in all_complexes
+        ]
+        complex_markup = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
+        await state.set_state(RegistrationState.apartment)
+        await message.answer("Вы выбрали неверный ЖК, повторите попытку!", reply_markup=complex_markup)
+
+    
 @registration_router.message(RegistrationState.email)
 async def address_selected(message: types.Message, state: FSMContext):
     address = message.text

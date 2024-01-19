@@ -12,8 +12,10 @@ from dotenv import load_dotenv
 
 from StateGroups.NewsState import *
 from StateGroups.ProblemState import *
-from buttons.emploee_menu import emploee_menu_markup
+from StateGroups.PollState import *
+from buttons.emploee_menu import emploee_menu_markup 
 from buttons.main_menu import main_menu_markup
+from buttons.issues_menu import tickets_markup
 from buttons.registration import select_role_markup
 from buttons.empl_back_to_menu import *
 from db.db_config import *
@@ -65,8 +67,7 @@ dp.include_router(employer_router)
 dp.include_router(main_router)
 dp.include_router(last_router)
 
-class PollState(StatesGroup):
-    WaitingForPoll = State()
+
 
 @dp.message(CommandStart())
 async def on_start_command(message: types.Message):
@@ -173,6 +174,7 @@ async def user_profile(message: types.Message):
 
 @main_router.message(lambda message: message.text == "Новости")
 async def get_news(message: types.Message, state: FSMContext):
+    print(message.__dict__)
     await get_news_for_user(message.from_user.id, bot, state)
 
 
@@ -384,20 +386,6 @@ async def process_message(message: types.Message, state: FSMContext,
 
 @employer_router.message(lambda message: message.text == "Заявки жителей")
 async def show_issues(message: types.Message, state: FSMContext):
-    tickets_markup = ReplyKeyboardMarkup(
-    resize_keyboard=True,
-    keyboard=[
-            [
-                KeyboardButton(text="Все заявки"),
-                KeyboardButton(text="Закрытые заявки"),
-                KeyboardButton(text="Открытые заявки"),
-            ],
-            [
-                KeyboardButton(text="Вернуться назад"),
-            ],
-        ]
-    )   
-
     await bot.send_message(message.chat.id, "Выберите категорию заявок:", reply_markup=tickets_markup)
 
 @employer_router.message(lambda message: message.text in ["Все заявки", "Закрытые заявки", "Открытые заявки"])

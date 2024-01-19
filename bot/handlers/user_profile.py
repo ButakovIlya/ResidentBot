@@ -11,11 +11,11 @@ async def user_profile_handler(user_id):
                 f"Отчество: {user.patronymic}\n"
                 f"Адрес: {user.address}\n"
                 f"Квартира: {user.apartment}\n"
-                f"Жилой комплекс: {user.residential_complex}\n"
+                f"Жилой комплекс: {user.residential_complex.name}\n"
                 f"Номер телефона: {user.phone_number}\n"
                 f"Email: {user.email}\n"
                 f"Роль: {user.role.role}\n"
-                f"Подтвержден: {user.is_confirmed}"
+                f"Подтвержден: {'Да' if user.is_confirmed else 'Нет'}"
             )
             return profile
         else:

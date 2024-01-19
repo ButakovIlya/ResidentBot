@@ -239,7 +239,6 @@ def get_user_by_id(tg_id: int) -> User:
     finally:
         User.close_session()
 
-
 def create_employer(tg_id: int, delete_if_exists=False) -> None:
     session = Session()
     Employer.set_session(session)
@@ -304,3 +303,24 @@ def delete_ticket_by_id(ticket_id: int) -> Boolean:
         return False
     finally:
         Ticket.close_session()
+
+
+def get_all_residentials() -> list[ResidentialComplex]:
+    try:
+        ResidentialComplex.set_session(Session())
+        all_complexes = ResidentialComplex.get_all()
+        return all_complexes
+    except Exception:
+        return None
+    finally:
+        ResidentialComplex.close_session()
+
+def get_residential_id_by_name(residential_complex_name) -> int:
+    try:
+        ResidentialComplex.set_session(Session())
+        complex_id = ResidentialComplex.get_id_by_name(residential_complex_name)
+        return complex_id
+    except Exception:
+        return None
+    finally:
+        ResidentialComplex.close_session()

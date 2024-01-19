@@ -55,11 +55,13 @@ log_file_path = 'my_log.log'
 class User(Base):
     __tablename__ = 'user'
     telegram_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    username = Column(String)
+    tg_link = Column(String)
     first_name = Column(String)
     last_name = Column(String)
     patronymic = Column(String)
     apartment = Column(String)
-    residential_complex = Column(String)
+    residential_complex_id = Column(Integer)
     phone_number = Column(String)
     address = Column(String)
     email = Column(String)
@@ -69,12 +71,13 @@ class User(Base):
     is_active = Column(Boolean)
     is_banned = Column(Boolean)
     
-    # Определите внешний ключ
+    # Определите внешние ключи
     role_id = Column(Integer, ForeignKey('user_role.role_id'))
-    username = Column(String)
-    tg_link = Column(String)
-    # Определите связь с таблицей user_role
+    residential_complex_id = Column(Integer, ForeignKey('residential_complex.residential_complex_id'))
+
+    # Определите связи
     role = relationship('UserRole')
+    residential_complex = relationship('ResidentialComplex')
 
     _session = None  
     def __init__(self, **user_data):
@@ -247,7 +250,7 @@ class User(Base):
             return None
 
     def update(self, updated_data):
-        logger.info(f"Запрос на обновление пользователя")
+        logger.info(f"Запрос на обновление пользователя {updated_data}")
         session = self.get_session()
         try:
             user = session.get(User, self.telegram_id)
@@ -1291,6 +1294,7 @@ class Poll(Base):
             return all_pols
         except Exception as e:
             logger.error(f"Не удалось получить все опросы: {str(e)}")
+            return None
 
     @classmethod
     def get_all_active(cls, user_id):
@@ -1300,6 +1304,7 @@ class Poll(Base):
             return all_pols
         except Exception as e:
             logger.error(f"Не удалось получить все активные опросы: {str(e)}")
+            return None
 
     @classmethod
     def get_all_inactive(cls, user_id):
@@ -1309,6 +1314,7 @@ class Poll(Base):
             return all_pols
         except Exception as e:
             logger.error(f"Не удалось получить все завершенные опросы: {str(e)}")
+            return None
 
     @classmethod
     def get_by_id(cls, poll_tg_id):
@@ -1321,13 +1327,16 @@ class Poll(Base):
             return poll
         except Exception as e:
             logger.error(f"Не удалось получить опрос по ID: {str(e)}")
+            return None
 
     def save(self):
         try:
             self._session.add(self)
             self._session.commit()
+            return True
         except Exception as e:
             logger.error(f"Не удалось сохранить опрос: {str(e)}")
+            return False
 
     def update(self, updated_data):
         session = self.get_session()
@@ -1394,100 +1403,155 @@ class Poll(Base):
             logger.error(f"Не удалось закрыть сессию: {str(e)}")
 
 
+class ResidentialComplex(Base):
+    __tablename__ = 'residential_complex'
+
+    residential_complex_id = Column(BigInteger, primary_key=True, nullable=True)
+    name = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+
+
+    _session = None  
+    def __init__(self, **user_data):
+        super().__init__(**user_data)
+
+    @classmethod
+    def set_session(cls, session):
+        cls._session = session
+
+    @classmethod
+    def get_session(cls):
+        return cls._session
+
+    @classmethod
+    def get_all(cls):
+        try:
+            query = text(f"SELECT residential_complex_id, name FROM resident_db.residential_complex;")
+            all_complexes = cls.get_session().execute(query).fetchall()
+            if all_complexes:
+                return all_complexes
+            return None 
+        except Exception as e:
+            logger.error(f"Не удалось получить все жилые комплексы: {str(e)}")
+            return None
+
+    @classmethod
+    def get_id_by_name(cls, name):
+        try:
+            sql = text(f"SELECT residential_complex_id FROM resident_db.residential_complex WHERE name = '{name}'")
+            complex = cls.get_session().execute(sql, {"name": name}).fetchone()
+            if not complex:
+                return None
+            return complex.residential_complex_id
+        except Exception as e:
+            logger.error(f"Не удалось получить ЖК по ID: {str(e)}")
+            return None
+        
+    @classmethod
+    def close_session(cls):
+        try:
+            if cls._session:
+                cls._session.close()
+        except Exception as e:
+            logger.error(f"Не удалось закрыть сессию: {str(e)}")
+
 if __name__ == "__main__":
     # Запрос данных
     User.set_session(session)
     users = User.get_all()
 
-    # new_user_data = {
-    #     'telegram_id': 228,
-    #     'first_name': '228',
-    #     'last_name': '228',
-    #     'patronymic': '228',
-    #     'phone_number': '228',
-    #     'email': '228@ex5ample.com',
-    #     'role_id': 1,
-    # }
+    ResidentialComplex.set_session(Session())
+    print(ResidentialComplex.get_all())
 
-    # new_user = User(**new_user_data)
-    # new_user.save()
+    # # new_user_data = {
+    # #     'telegram_id': 228,
+    # #     'first_name': '228',
+    # #     'last_name': '228',
+    # #     'patronymic': '228',
+    # #     'phone_number': '228',
+    # #     'email': '228@ex5ample.com',
+    # #     'role_id': 1,
+    # # }
 
-
-    # Вывод результатов
-    print("ТАБЛИЦА ВСЕХ ПОЛЬЗОВАТЕЛЕЙ")
-    for user in users:
-        print(f"telegram_id: {user.telegram_id}, first_name: {user.first_name}, last_name: {user.last_name}, email: {user.email}")
+    # # new_user = User(**new_user_data)
+    # # new_user.save()
 
 
-    Employer.set_session(session)
-    employers = Employer.get_all()
-    print("ТАБЛИЦА ВСЕХ ГЛАВНЫХ")
-    for employer in employers:
-        print(f"telegram_id: {employer.telegram_id}, first_name: {employer.first_name}, last_name: {employer.last_name}, email: {employer.email}")
+    # # Вывод результатов
+    # print("ТАБЛИЦА ВСЕХ ПОЛЬЗОВАТЕЛЕЙ")
+    # for user in users:
+    #     print(f"telegram_id: {user.telegram_id}, first_name: {user.first_name}, last_name: {user.last_name}, email: {user.email}")
 
 
-    current_datetime = datetime.datetime.now()
+    # Employer.set_session(session)
+    # employers = Employer.get_all()
+    # print("ТАБЛИЦА ВСЕХ ГЛАВНЫХ")
+    # for employer in employers:
+    #     print(f"telegram_id: {employer.telegram_id}, first_name: {employer.first_name}, last_name: {employer.last_name}, email: {employer.email}")
 
 
-    current_date = current_datetime.date()
-    current_time = current_datetime.time()
+    # current_datetime = datetime.datetime.now()
 
-    Ticket.set_session(session)
-    TicketType.set_session(session)
 
-    UtilityBill.set_session(session)
-    all_utility_bills = UtilityBill.get_all()
-    for utility_bill in all_utility_bills:
-        print(utility_bill.utility_bill_id, utility_bill.user_id, utility_bill.date, utility_bill.due_date, utility_bill.invoice_els_number, utility_bill.amount, utility_bill.description)
+    # current_date = current_datetime.date()
+    # current_time = current_datetime.time()
 
-    UserRole.set_session(session)
+    # Ticket.set_session(session)
+    # TicketType.set_session(session)
+
+    # UtilityBill.set_session(session)
+    # all_utility_bills = UtilityBill.get_all()
+    # for utility_bill in all_utility_bills:
+    #     print(utility_bill.utility_bill_id, utility_bill.user_id, utility_bill.date, utility_bill.due_date, utility_bill.invoice_els_number, utility_bill.amount, utility_bill.description)
+
+    # UserRole.set_session(session)
     
 
-    print(User.get_user_by_id(2))
-    print(User.exists(266))
+    # print(User.get_user_by_id(2))
+    # print(User.exists(266))
 
-    ticket = TicketType.get_id_by_ticket_type_name("Другое")
-    print(ticket)
+    # ticket = TicketType.get_id_by_ticket_type_name("Другое")
+    # print(ticket)
 
-    print(UserRole.get_role_id_by_role_name('Собственник'))
+    # print(UserRole.get_role_id_by_role_name('Собственник'))
 
-    EmployerRole.set_session(session)
-    print(EmployerRole.get_role_id_by_role_name('Сотрудник'))
+    # EmployerRole.set_session(session)
+    # print(EmployerRole.get_role_id_by_role_name('Сотрудник'))
 
 
 
-    print("Все неподтвержденные юзеры")
-    print(User.get_all_unconfirmed_users())
-    print("Все подтвержденные юзеры")
-    print(User.get_all_confirmed_users())
+    # print("Все неподтвержденные юзеры")
+    # print(User.get_all_unconfirmed_users())
+    # print("Все подтвержденные юзеры")
+    # print(User.get_all_confirmed_users())
 
-    print("Все подтвержденные сотрудники")
-    print(Employer.get_all_confirmed_employers())
+    # print("Все подтвержденные сотрудники")
+    # print(Employer.get_all_confirmed_employers())
 
-    print(Employer.get_by_id(1))
-    print(Employer.exists(2))
+    # print(Employer.get_by_id(1))
+    # print(Employer.exists(2))
 
-    # emp = Employer.get_by_id(1)
-    # update_data = {
-    #     'first_name':"Новое имя 3"
-    # }
-    # print(emp)
-    # Employer.update_by_id(emp.telegram_id, update_data)
-    # print(emp)
+    # # emp = Employer.get_by_id(1)
+    # # update_data = {
+    # #     'first_name':"Новое имя 3"
+    # # }
+    # # print(emp)
+    # # Employer.update_by_id(emp.telegram_id, update_data)
+    # # print(emp)
 
-    print(Employer.get_all_by_role("Сотрудник"))
+    # print(Employer.get_all_by_role("Сотрудник"))
 
     
-    print(User.get_user_by_id(2))
+    # print(User.get_user_by_id(2))
 
-    print(Ticket.get_all_by_user_id_and_status(11583571070, 0))
+    # print(Ticket.get_all_by_user_id_and_status(11583571070, 0))
 
-    print(TicketType.get_by_id(2).type)
+    # print(TicketType.get_by_id(2).type)
 
-    Poll.set_session(session)
-    # Poll.create_poll({"poll_tg_id": 1, "message_id": 1, "tittle": 1})
-    print(Poll.get_by_id(1))
-    # Закройте сессию
-    session.close()
+    # Poll.set_session(session)
+    # # Poll.create_poll({"poll_tg_id": 1, "message_id": 1, "tittle": 1})
+    # print(Poll.get_by_id(1))
+    # # Закройте сессию
+    # session.close()
 
 
