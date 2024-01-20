@@ -26,9 +26,10 @@ from handlers.issues import show_issues_handler
 from handlers.localization import Lang, get_localized_message
 from handlers.meter_data import meter_router
 from handlers.news import *
+from handlers.users import *
 from handlers.check_tikects import *
 from handlers.registration import registration_router
-from handlers.user_profile import *
+from handlers.profile import *
 from middleware.album import MediaGroupMiddleware
 from middleware.employer_verif import EmployeeMiddleware
 from middleware.message_log import MessagesLog
@@ -188,7 +189,7 @@ async def save_description(
 
 @main_router.message(lambda message: message.text == "Профиль")
 async def user_profile(message: types.Message):
-    user_profile = await user_profile_handler(message.from_user.id)
+    user_profile = await user_profile_handler(message.from_user.id, logger)
     if user_profile:
         await bot.send_message(message.from_user.id, user_profile)
     else:
@@ -457,6 +458,37 @@ async def unknown_message(message: types.Message):
 @employer_router.callback_query(lambda c: c.data.startswith("ban_user_"))
 async def ban_user(callback_query: types.CallbackQuery, state: FSMContext):
     await ban_user_func(callback_query, bot)
+
+
+@employer_router.callback_query(lambda c: c.data.startswith("profile_user_"))
+async def user_profile_to_employer(callback_query: types.CallbackQuery, state: FSMContext):
+    await user_profile_to_employer_func(callback_query, bot)
+
+@main_router.message(lambda message: message.text == "Аккаунт")
+async def employer_profile(message: types.Message):
+    employer_profile = await employer_profile_handler(message.from_user.id, logger)
+    if employer_profile:
+        await bot.send_message(message.from_user.id, employer_profile)
+    else:
+        response_msg = get_localized_message("ru", "profile_error")
+        await bot.send_message(message.from_user.id, response_msg)
+
+
+@main_router.message(lambda message: message.text == "Мои жители")
+async def all_residents(message: types.Message, state: FSMContext):
+    employer = get_employer_by_id(message.from_user.id)
+    all_residents = get_all_users_by_complex_id(employer.residential_complex_id)
+    if all_residents: 
+        await send_all_users_by_complex_id(message.from_user.id, bot, state)
+    else:
+        response_msg = get_localized_message("ru", "new_users_found_by_complex")
+        await bot.send_message(message.from_user.id, response_msg)
+
+
+
+@employer_router.callback_query(lambda c: c.data in ["user_next_page", "user_prev_page"])
+async def change_user_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_user_page_func(callback_query, state, bot)
 
 
 async def main():

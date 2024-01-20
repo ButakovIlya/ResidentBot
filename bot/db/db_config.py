@@ -149,7 +149,12 @@ class User(Base):
         all_users = cls.get_session().query(cls).all()
         telegram_ids = [user.telegram_id for user in all_users]
         return telegram_ids
-
+    
+    @classmethod
+    def get_all_by_complex_id(cls, complex_id):
+        all_users_by_complex = cls.get_session().query(cls).filter_by(residential_complex_id=complex_id)
+        return all_users_by_complex
+    
     @classmethod
     def confirm_user_by_id(cls, telegram_id):
         logger.info(f"Запрос на подтверждение пользователя по id")
@@ -407,8 +412,10 @@ class Employer(Base):
     
     # Определите внешний ключ
     role_id = Column(BigInteger, ForeignKey('employer_role.role_id'))
+    residential_complex_id = Column(BigInteger, ForeignKey('residential_complex.residential_complex_id'))
     # Определите связь с таблицей employer_role
     role = relationship('EmployerRole')
+    residential_complex = relationship('ResidentialComplex')
 
     _session = None  
     def __init__(self, **user_data):
@@ -1410,7 +1417,6 @@ class ResidentialComplex(Base):
 
     residential_complex_id = Column(BigInteger, primary_key=True, nullable=True)
     name = Column(String, nullable=True)
-    address = Column(String, nullable=True)
 
 
     _session = None  

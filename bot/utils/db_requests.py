@@ -92,10 +92,25 @@ def get_all_employers_ids():
     finally:
         Employer.close_session()
 
+def get_all_users_by_complex_id(complex_id):
+    try:
+        User.set_session(Session())
+        return User.get_all_by_complex_id(complex_id)
+    finally:
+        User.close_session()
+
+
 def get_all_users_ids():
     try:
         User.set_session(Session())
         return User.get_all_telegram_ids()
+    finally:
+        User.close_session()
+
+def get_all_users():
+    try:
+        User.set_session(Session())
+        return User.get_all()
     finally:
         User.close_session()
 
@@ -244,6 +259,13 @@ def get_user_by_id(tg_id: int) -> User:
         return session.get(User, tg_id)
     finally:
         User.close_session()
+
+def get_employer_by_id(tg_id: int) -> User:
+    session = Session()
+    try:
+        return session.get(Employer, tg_id)
+    finally:
+        Employer.close_session()
 
 def create_employer(tg_id: int, delete_if_exists=False) -> None:
     session = Session()
