@@ -714,6 +714,7 @@ class Ticket(Base):
                                 resident_db.ticket
                                     JOIN
                                 resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                            ORDER BY date DESC
                          """)
             all_tickets = cls.get_session().execute(query).fetchall()
             return all_tickets
@@ -1087,8 +1088,10 @@ class News(Base):
     @classmethod
     def get_all(cls):
         try:
+            sql = text("SELECT * FROM resident_db.news ORDER BY news_id DESC")
             session = cls.get_session()
-            all_news = session.query(cls).all()
+            result = session.execute(sql)
+            all_news = result.fetchall()
             return all_news
         except Exception as e:
             logger.error(f"Не удалось получить все новости: {str(e)}")
@@ -1318,7 +1321,6 @@ class Poll(Base):
 
     @classmethod
     def get_by_id(cls, poll_tg_id):
-        session = cls.get_session()
         try:
             sql = text(f"SELECT * FROM resident_db.poll WHERE poll_tg_id = '{poll_tg_id}'")
             poll = cls.get_session().execute(sql, {"poll_tg_id": poll_tg_id}).fetchone()

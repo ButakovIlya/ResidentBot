@@ -148,6 +148,12 @@ def get_poll_by_id(poll_id) -> Poll:
     finally:
         Poll.close_session()
 
+def delete_poll_by_id(poll_id) -> Poll:
+    try:
+        Poll.set_session(Session())
+        return Poll.delete_by_id(poll_id)
+    finally:
+        Poll.close_session()
 
 def close_pole(poll_id) -> None:
     try:
@@ -286,7 +292,7 @@ def ban_user_by_id(tg_id: int) -> Boolean:
 def close_ticket_by_id(ticket_id: int) -> Boolean:
     try:
         Ticket.set_session(Session())
-        Ticket.get_by_id(ticket_id).delete()
+        Ticket.close_ticket(ticket_id)
         return True
     except Exception:
         return False

@@ -20,6 +20,9 @@ class RegistrationMiddleware(BaseMiddleware):
         User.close_session()
 
         if (user is not None and user.is_confirmed) or event.text == "/start":
-            return await handler(event, data)
+            if not user.is_banned:
+                return await handler(event, data)
+            else:
+                await event.bot.send_message(tg_id, Lang.strings["ru"]["user_is_banned"])
         else:
             await event.bot.send_message(tg_id, Lang.strings["ru"]["employee_access_error"])

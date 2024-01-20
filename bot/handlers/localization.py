@@ -28,6 +28,8 @@ class Lang:
             "close_ticket_error": "Ошибка, заявка для закрытия не найдена.",
             "cancel_ticket_error": "Ошибка, заявка для отмены не найдена.",
             "news_delete_error":"Ошибка, новость для удаления не найдена.",
+
+            "user_is_banned":"Вы были заблокированы в данном боте!",
         },
         "en": {
             "start_message": "Hello! This is a bot that allows..."

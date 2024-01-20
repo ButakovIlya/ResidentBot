@@ -37,10 +37,17 @@ from middleware.verification import RegistrationMiddleware
 from utils.all_employees_messenger import all_employees_messenger
 from utils.all_users_messenger import all_confirmed_users_messenger
 from utils.date_time import get_current_date_and_time
-from utils.db_image_loader import send_ticket_images_to_user, send_news_images_to_user, send_ticket_images_to_employer, send_news_images_to_employer
 from utils.db_requests import *
 from utils.media_processing import media_processing
 from utils.folders_checking import create_directories
+from utils.send_poll_to_users import *
+
+
+from handlers.callback_queries.news_handlers import *
+from handlers.callback_queries.ticket_handlers import *
+from handlers.callback_queries.ticket_handlers import *
+from handlers.callback_queries.poll_handlers import *
+from handlers.callback_queries.user_handlers import *
 
 
 logging.basicConfig(level=logging.INFO)
@@ -74,11 +81,16 @@ async def on_start_command(message: types.Message):
     tg_id = message.from_user.id
     User.set_session(Session())
 
+    if get_user_by_id(tg_id).is_banned:
+        await message.answer(Lang.strings["ru"]["user_is_banned"])
+        return
+
     if not User.exists(tg_id):
         await message.answer(Lang.strings["ru"]["start_message"], reply_markup=select_role_markup)
     else:
         user: User = User.get_user_by_id(tg_id)
         if user.is_confirmed:
+            if not user.is_active: user.update({'is_active': 1})
             await message.answer("Вы находитесь в главном меню", reply_markup=main_menu_markup)
         else:
             message_text = "Ожидайте верификации" if user.residential_complex else "Продолжайте регистрацию"
@@ -90,6 +102,18 @@ async def on_start_command(message: types.Message):
 async def return_to_main_menu(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(Lang.strings["ru"]["return_to_main_menu"], reply_markup=main_menu_markup)
+
+
+# Delete in future
+@employer_router.message(lambda message: message.text == "Сотрудник")
+async def development_mode(message: types.Message):
+    await bot.send_message(message.from_user.id, "Вы вошли в меню разработки Сотрудника",
+                           reply_markup=emploee_menu_markup)
+
+@employer_router.message(lambda message: message.text == "Вернуться назад")
+async def return_to_main_menu(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
 
 
 @main_router.message(lambda message: message.text == "Связаться с УК")
@@ -174,160 +198,7 @@ async def user_profile(message: types.Message):
 
 @main_router.message(lambda message: message.text == "Новости")
 async def get_news(message: types.Message, state: FSMContext):
-    print(message.__dict__)
     await get_news_for_user(message.from_user.id, bot, state)
-
-
-
-@main_router.callback_query(lambda c: c.data in ["prev_page", "next_page"])
-async def change_news_page(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    current_page = await state.get_state() or 0
-    all_news = News.get_all()
-    pages = [all_news[i:i + 5] for i in range(0, len(all_news), 5)]
-
-    if callback_query.data == "prev_page" and current_page > 0:
-        current_page -= 1
-    elif callback_query.data == "next_page" and current_page + 1 < len(pages):
-        current_page += 1
-
-    await state.set_state(current_page)
-
-    await get_news_for_user(user_id, bot, state)
-
-    await bot.delete_message(user_id, message_id)
-
-
-@main_router.callback_query(lambda c: c.data.startswith("news_"))
-async def show_news_details(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    news_id = int(callback_query.data.split("_")[1])
-    news_item = News.get_by_id(news_id)
-
-    # fix only photo 
-
-    if news_item:
-        news_details = f"Заголовок: {news_item.topic}\n\n{news_item.body}"
-
-        await send_news_images_to_user(news_item, bot, user_id, news_details)
-       
-    else:
-        await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
-
-    await bot.delete_message(user_id, message_id)
-
-@employer_router.callback_query(lambda c: c.data.startswith("edit_news_"))
-async def edit_news(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    news_id = int(callback_query.data.split("_")[2])
-    news_item = get_news_by_id(news_id)
-
-    # fix only photo 
-
-    if news_item:
-        news_details = f"Заголовок: {news_item.topic}\n\n{news_item.body}"
-
-        await send_news_images_to_employer(news_item, bot, user_id, news_details, news_item)
-       
-    else:
-        await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
-
-    await bot.delete_message(user_id, message_id)
-
-
-@employer_router.callback_query(lambda c: c.data.startswith("delete_news_"))
-async def delete_news(callback_query: types.CallbackQuery, state: FSMContext):
-    from_user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    news_id = int(callback_query.data.split("_")[2])
-    news_item = get_news_by_id(news_id)
-
-    if news_item:
-        delete_news_by_id(news_id)
-        await bot.send_message(from_user_id, f"Новость успешно удалена.", reply_markup=emploee_menu_markup)
-
-    else:
-        await bot.send_message(from_user_id, Lang.strings["ru"]["news_delete_error"])
-
-    await bot.delete_message(from_user_id, message_id)
-
-@main_router.message(lambda message: message.text == "Проверить мои заявки")
-async def check_tikects(message: types.Message, state: FSMContext):
-    await check_tikects_handler(message.from_user.id, bot, state)
-
-@main_router.callback_query(lambda c: c.data.startswith("ticket_"))
-async def show_unchecked_tikects(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    tikect_id = int(callback_query.data.split("_")[1])
-    tikect_item = get_ticket_by_id(tikect_id)
-
-    if tikect_item:
-        tikect_details = f"Тип заявки: {tikect_item.type}\n\nТекст: {tikect_item.details}"
-        await send_ticket_images_to_user(tikect_item, bot, user_id, tikect_details, tikect_item)
-    else:
-        await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
-
-    await bot.delete_message(user_id, message_id)
-
-
-@main_router.message(lambda message: message.text == "Оплата ЖКУ")
-async def create_invoice(message: types.Message):
-    PRICE = LabeledPrice(label="Квитанция на оплату", amount=500 * 100)
-    await bot.send_invoice(
-        chat_id=message.chat.id,
-        title="Квитанция №1",
-        description="Гор. вода 1 - 45.243\nГор. вода 2 - 32.987\nХол. вода 1 - 78.543",
-        provider_token=PAYMENT_TOKEN,
-        currency="rub",
-        prices=[PRICE],
-        start_parameter="some",
-        payload="test-invoice"
-    )
-
-
-@main_router.pre_checkout_query(lambda query: True)
-async def pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
-    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
-
-# @main_router.message(SuccessfulPayment)
-# async def successful_payment(message: types.Message):
-#     await bot.send_message(message.from_user.id,
-#                            f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно !")
-
-# Delete in future
-@employer_router.message(lambda message: message.text == "Сотрудник")
-async def development_mode(message: types.Message):
-    await bot.send_message(message.from_user.id, "Вы вошли в меню разработки Сотрудника",
-                           reply_markup=emploee_menu_markup)
-
-@employer_router.message(lambda message: message.text == "Вернуться назад")
-async def return_to_main_menu(message: types.Message, state: FSMContext):
-    await state.clear()
-    await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
-
-@employer_router.message(lambda message: message.text == "Статистика")
-async def show_house_statistics(message: types.Message):
-    with open('fake_data/house_stat.json', 'r') as file:
-        statistics_data = json.load(file)
-
-    statistics_message = (
-        "Статистика дома ул. Пермская, д. 18\n\n"
-        f"Общее количество жителей: {statistics_data['residents_total']}\n"
-        f"Зарегистрированные жители: {statistics_data['registered_residents']}\n"
-        f"Новые жители за текущий месяц: {statistics_data['new_residents_this_month']}\n"
-        f"Всего выставлено счетов за месяц: {statistics_data['total_invoices_this_month']}\n"
-        f"Оплаченные счета за месяц: {statistics_data['paid_invoices_this_month']}\n"
-        f"Неоплаченные счета за месяц: {statistics_data['unpaid_invoices_this_month']}\n"
-        f"Количество сотрудников в системе: {statistics_data['employees_total']}\n"
-    )
-
-
-    await message.answer(statistics_message)
-
 
 @employer_router.message(lambda message: message.text == "Создать новость")
 async def start_create_news(message: types.Message, state: FSMContext):
@@ -338,8 +209,12 @@ async def start_create_news(message: types.Message, state: FSMContext):
 @employer_router.message(NewsStates.InputTopic)
 async def create_news_select_topic(message: types.Message, state: FSMContext):
     topic = message.text
-    if len(topic) < 5 or len(topic) > 30:
-        await message.answer('Заголовок новости должен содержать от 5 до 30 символов. Введите заголовок заново:', reply_markup=return_back_button_markup)
+    if topic:
+        if len(topic) < 5 or len(topic) > 30:
+            await message.answer('Заголовок новости должен содержать от 5 до 30 символов. Введите заголовок заново:', reply_markup=return_back_button_markup)
+            return
+    else: 
+        await message.answer('Ошибка ввода заголовка. Введите заголовок заново:', reply_markup=return_back_button_markup)
         return
 
     await message.answer('Теперь введите текст новости: ', reply_markup=return_back_button_markup)
@@ -367,6 +242,8 @@ async def process_message(message: types.Message, state: FSMContext,
 
     data = await state.get_data()
     topic = data['topic']
+    
+    import datetime
     news_data = {
         "topic": topic,
         "date": datetime.date.today(),
@@ -384,6 +261,74 @@ async def process_message(message: types.Message, state: FSMContext,
     await message.answer("Новость успешно отправлена всем жителям!")
 
 
+
+@main_router.callback_query(lambda c: c.data in ["prev_page", "next_page"])
+async def change_news_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_news_page_func(callback_query, state, bot)
+
+
+@main_router.callback_query(lambda c: c.data.startswith("news_"))
+async def show_news_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await show_news_details_func(callback_query, state, bot)
+
+
+@employer_router.callback_query(lambda c: c.data.startswith("edit_news_"))
+async def edit_news(callback_query: types.CallbackQuery, state: FSMContext):
+    await edit_news_func(callback_query, state, bot)
+
+
+@employer_router.callback_query(lambda c: c.data.startswith("delete_news_"))
+async def delete_news(callback_query: types.CallbackQuery, state: FSMContext):
+    await delete_news_func(callback_query, state, bot)
+
+
+
+@main_router.message(lambda message: message.text == "Оплата ЖКУ")
+async def create_invoice(message: types.Message):
+    PRICE = LabeledPrice(label="Квитанция на оплату", amount=500 * 100)
+    await bot.send_invoice(
+        chat_id=message.chat.id,
+        title="Квитанция №1",
+        description="Гор. вода 1 - 45.243\nГор. вода 2 - 32.987\nХол. вода 1 - 78.543",
+        provider_token=PAYMENT_TOKEN,
+        currency="rub",
+        prices=[PRICE],
+        start_parameter="some",
+        payload="test-invoice"
+    )
+
+
+@main_router.pre_checkout_query(lambda query: True)
+async def pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
+# @main_router.message(SuccessfulPayment)
+# async def successful_payment(message: types.Message):
+#     await bot.send_message(message.from_user.id,
+#                            f"Платеж на сумму {message.successful_payment.total_amount // 100} {message.successful_payment.currency} прошел успешно !")
+
+
+@employer_router.message(lambda message: message.text == "Статистика")
+async def show_house_statistics(message: types.Message):
+    with open('fake_data/house_stat.json', 'r') as file:
+        statistics_data = json.load(file)
+
+    statistics_message = (
+        "Статистика дома ул. Пермская, д. 18\n\n"
+        f"Общее количество жителей: {statistics_data['residents_total']}\n"
+        f"Зарегистрированные жители: {statistics_data['registered_residents']}\n"
+        f"Новые жители за текущий месяц: {statistics_data['new_residents_this_month']}\n"
+        f"Всего выставлено счетов за месяц: {statistics_data['total_invoices_this_month']}\n"
+        f"Оплаченные счета за месяц: {statistics_data['paid_invoices_this_month']}\n"
+        f"Неоплаченные счета за месяц: {statistics_data['unpaid_invoices_this_month']}\n"
+        f"Количество сотрудников в системе: {statistics_data['employees_total']}\n"
+    )
+
+
+    await message.answer(statistics_message)
+
+
+
 @employer_router.message(lambda message: message.text == "Заявки жителей")
 async def show_issues(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, "Выберите категорию заявок:", reply_markup=tickets_markup)
@@ -392,43 +337,30 @@ async def show_issues(message: types.Message, state: FSMContext):
 async def show_issues_by_status(message: types.Message, state: FSMContext):
     await show_issues_handler(bot, message, state, message.text.split(' ')[0])
 
+@main_router.message(lambda message: message.text == "Проверить мои заявки")
+async def check_tikects(message: types.Message, state: FSMContext):
+    await check_tikects_handler(message.from_user.id, bot, state)
+
+@main_router.callback_query(lambda c: c.data.startswith("ticket_"))
+async def show_unchecked_tikect(callback_query: types.CallbackQuery, state: FSMContext):
+   await show_unchecked_tikect_func(callback_query, state, bot)
+
 
 @employer_router.callback_query(lambda c: c.data in ["prev_ticket_page", "next_ticket_page"])
 async def change_ticket_page(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-    current_page = await state.get_state() or 0
-    all_tickets = get_all_tickets()
-    pages = [all_tickets[i:i + 5] for i in range(0, len(all_tickets), 5)]
-
-    if callback_query.data == "prev_ticket_page" and current_page > 0:
-        current_page -= 1
-    elif callback_query.data == "next_ticket_page" and current_page + 1 < len(pages):
-        current_page += 1
-
-    await state.set_state(current_page)
-
-    await show_issues_handler(bot, callback_query, state)
-
-    await bot.delete_message(user_id, message_id)
-
-
+    await change_ticket_page_func(callback_query, state, bot)
+    
 @employer_router.callback_query(lambda c: c.data.startswith("issues_"))
 async def show_issues_details(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
+    await show_issues_details_func(callback_query, state, bot)
 
-    issues_id = int(callback_query.data.split("_")[1])
-    issue_item = get_ticket_by_id(issues_id)
+@employer_router.callback_query(lambda c: c.data.startswith("close_ticket_"))
+async def close_ticket(callback_query: types.CallbackQuery, state: FSMContext):
+    await close_ticket_func(callback_query, state, bot)
 
-    if issue_item:
-        issue_details = f"Тип обращения: {issue_item.type}\nОписание обращения: {issue_item.details}\nДата обращения: {issue_item.date} {issue_item.time}\nЗакрыта: {issue_item.is_solved}\n\nАвтор заявки: {issue_item.tg_link}"
-       
-        await send_ticket_images_to_employer(issue_item, bot, user_id, issue_details, issue_item)
-    else:
-        await bot.send_message(user_id, Lang.strings["ru"]["ticket_open_info_error"])
-
-    await bot.delete_message(user_id, message_id)
+@employer_router.callback_query(lambda c: c.data.startswith("delete_ticket_"))
+async def delete_ticket(callback_query: types.CallbackQuery, state: FSMContext):
+    await delete_ticket_func(callback_query, state, bot)
 
 
 @employer_router.message(lambda message: message.text == "Создать опрос")
@@ -437,8 +369,13 @@ async def set_poll(message: types.Message, state:FSMContext):
     await bot.send_message(message.from_user.id, "Создайте и отправьте ваш опрос. Используйте кнопку прикрепить(в нижнем левом углу) -> Опрос",reply_markup=return_back_button_markup)
 
 
+@employer_router.callback_query(lambda c: c.data.startswith("poll_"))
+async def show_poll_details(callback_query: types.CallbackQuery):
+    await show_poll_details_func(callback_query, bot)
+
+
 @employer_router.message(PollState.WaitingForPoll)
-async def start_command(message: types.Message, state:FSMContext):
+async def create_poll(message: types.Message, state:FSMContext):
     if message.poll:
         all_options = message.poll.options
         options = []
@@ -458,21 +395,7 @@ async def start_command(message: types.Message, state:FSMContext):
 
         # print(poll.__dict__)
         if poll:
-            for user_id in get_all_users_ids():
-                try:
-                    if get_user(user_id).is_active:
-                        await bot.send_message(
-                            chat_id=user_id,
-                            text="Пожалуйста, примите участие в опросе, Ваше мнение капец как важно для нас!"
-                        )
-                        await bot.forward_message(
-                            chat_id=user_id,
-                            from_chat_id=poll.chat.id,
-                            message_id=poll.message_id
-                        )
-                except Exception:
-                    update_user_by_id(user_id, {'is_active':0})
-                    logger.warning(f"Чат с id={user_id} недоступен")
+            await send_poll_to_all_users(bot, poll, logger)
 
             poll_data = {
                 'user_id': message.from_user.id,
@@ -530,75 +453,11 @@ async def unknown_message(message: types.Message):
     await message.answer("Неизвестная команда!")
 
 
-@employer_router.callback_query(lambda c: c.data.startswith("poll"))
-async def show_poll_details(callback_query: types.CallbackQuery):
-    user_id = callback_query.from_user.id
-    message_id = callback_query.message.message_id
-
-    poll_id = int(callback_query.data.split("_")[1])
-    poll_item = get_poll_by_id(poll_id)
-
-    # keyboard_markup = types.InlineKeyboardMarkup(inline_keyboard=[types.InlineKeyboardButton(text="Закрыть опрос", callback_data=f"closepoll_{poll_id}")])
-
-    if poll_item:
-        try:
-            await bot.forward_message(
-                    chat_id=user_id,
-                    from_chat_id=user_id,
-                    message_id=poll_item.message_id,
-            )
-        except Exception:
-            await bot.send_message(chat_id=user_id,
-                                   text="Опрос был удален.")
-            Poll.delete_by_id(poll_id)
-    else:
-        await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
-
-    await bot.delete_message(user_id, message_id)
-
-
 
 @employer_router.callback_query(lambda c: c.data.startswith("ban_user_"))
 async def ban_user(callback_query: types.CallbackQuery, state: FSMContext):
-    user_id = int(str(callback_query.data).split('_')[2])
-    from_user_id = callback_query.from_user.id
-    user_to_ban = get_user_by_id(user_id)
-    if user_to_ban:
-        ban_user_by_id(user_id)
-        await bot.send_message(from_user_id, f"Польватель {user_to_ban.username} успешно заблокирован.", reply_markup=emploee_menu_markup)
-    else:
-        await bot.send_message(from_user_id, Lang.strings["ru"]["user_to_ban_error"])
+    await ban_user_func(callback_query, bot)
 
-    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-
-@employer_router.callback_query(lambda c: c.data.startswith("close_ticket_"))
-async def close_ticket(callback_query: types.CallbackQuery, state: FSMContext):
-    ticket_id = int(str(callback_query.data).split('_')[2])
-    from_user_id = callback_query.from_user.id
-    ticket_to_close = get_ticket_by_id(ticket_id)
-    if ticket_to_close:
-        close_ticket_by_id(ticket_id)
-        await bot.send_message(from_user_id, f"Заявка №{ticket_to_close.ticket_id} успешно закрыта.", reply_markup=emploee_menu_markup)
-    else:
-        await bot.send_message(from_user_id, Lang.strings["ru"]["user_to_ban_error"])
-    
-    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
-
-
-@employer_router.callback_query(lambda c: c.data.startswith("delete_ticket_"))
-async def delete_ticket(callback_query: types.CallbackQuery, state: FSMContext):
-    ticket_id = int(str(callback_query.data).split('_')[2])
-    from_user_id = callback_query.from_user.id
-    ticket_to_delete = get_ticket_by_id(ticket_id)
-    if ticket_to_delete:
-        if delete_ticket_by_id(ticket_id):
-            await bot.send_message(from_user_id, f"Заявка №{ticket_to_delete.ticket_id} успешно отменена.", reply_markup=main_menu_markup)
-        else: 
-            await bot.send_message(from_user_id, Lang.strings["ru"]["cancel_ticket_error"])
-    else:
-        await bot.send_message(from_user_id, Lang.strings["ru"]["cancel_ticket_error"])
-
-    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 async def main():
     # await get_payment_notification(bot) Допилить
