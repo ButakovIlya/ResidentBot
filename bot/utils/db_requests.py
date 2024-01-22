@@ -233,7 +233,7 @@ def get_all_confirmed_employees_with_role(role_name: str) -> list[Employer]:
     return confirmed_empls
 
 
-def create_user(tg_id: int, delete_if_exists=False) -> None:
+def create_user(tg_id: int, username, delete_if_exists=False) -> None:
     session = Session()
     User.set_session(session)
     UserRole.set_session(session)
@@ -243,10 +243,12 @@ def create_user(tg_id: int, delete_if_exists=False) -> None:
         User.delete_user_by_id(tg_id)
 
     new_user_data = {
-        "telegram_id": tg_id,
-        "role_id": role_id,
-        "is_confirmed": False,
-        "is_registration_reviewed": False
+        'telegram_id': tg_id,
+        'username':username,
+        'tg_link': 'https://t.me/' + username,
+        'role_id': role_id,
+        'is_confirmed': False,
+        'is_registration_reviewed': False
     }
     new_user = User(**new_user_data)
     new_user.save()
@@ -348,6 +350,17 @@ def get_residential_id_by_name(residential_complex_name) -> int:
         ResidentialComplex.set_session(Session())
         complex_id = ResidentialComplex.get_id_by_name(residential_complex_name)
         return complex_id
+    except Exception:
+        return None
+    finally:
+        ResidentialComplex.close_session()
+
+
+def get_residential_by_id(residential_complex_id) -> ResidentialComplex:
+    try:
+        ResidentialComplex.set_session(Session())
+        residential_complex = ResidentialComplex.get_by_id(residential_complex_id)
+        return residential_complex
     except Exception:
         return None
     finally:

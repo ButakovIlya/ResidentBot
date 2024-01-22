@@ -8,6 +8,8 @@ import logging
 # переделай на локальную
 engine = create_engine('mysql+mysqlconnector://root:root@89.111.172.79/resident_db')
 
+# engine = create_engine('mysql://root:root@localhost/resident_db')
+
 # Создайте сессию для взаимодействия с базой данных
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -68,8 +70,8 @@ class User(Base):
     image = Column(String)
     is_confirmed = Column(Boolean)
     is_registration_reviewed = Column(Boolean)
-    is_active = Column(Boolean)
-    is_banned = Column(Boolean)
+    is_active = Column(Boolean, default=1)
+    is_banned = Column(Boolean, default=0)
     
     # Определите внешние ключи
     role_id = Column(Integer, ForeignKey('user_role.role_id'))
@@ -256,7 +258,7 @@ class User(Base):
 
     def update(self, updated_data):
         logger.info(f"Запрос на обновление пользователя {updated_data}")
-        session = self.get_session()
+        session = Session()
         try:
             user = session.get(User, self.telegram_id)
             if user:
@@ -1451,6 +1453,18 @@ class ResidentialComplex(Base):
             if not complex:
                 return None
             return complex.residential_complex_id
+        except Exception as e:
+            logger.error(f"Не удалось получить ЖК по ID: {str(e)}")
+            return None
+    
+    @classmethod
+    def get_by_id(cls, residential_complex_id):
+        try:
+            sql = text(f"SELECT * FROM resident_db.residential_complex WHERE residential_complex_id = '{residential_complex_id}'")
+            complex = cls.get_session().execute(sql, {"residential_complex_id": residential_complex_id}).fetchone()
+            if not complex:
+                return None
+            return complex
         except Exception as e:
             logger.error(f"Не удалось получить ЖК по ID: {str(e)}")
             return None

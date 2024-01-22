@@ -82,9 +82,11 @@ async def on_start_command(message: types.Message):
     tg_id = message.from_user.id
     User.set_session(Session())
 
-    if get_user_by_id(tg_id).is_banned:
-        await message.answer(Lang.strings["ru"]["user_is_banned"])
-        return
+    user = get_user_by_id(tg_id)
+    if user:
+        if user.is_banned:
+            await message.answer(Lang.strings["ru"]["user_is_banned"])
+            return
 
     if not User.exists(tg_id):
         await message.answer(Lang.strings["ru"]["start_message"], reply_markup=select_role_markup)
@@ -481,15 +483,22 @@ async def all_residents(message: types.Message, state: FSMContext):
     if all_residents: 
         await send_all_users_by_complex_id(message.from_user.id, bot, state)
     else:
-        response_msg = get_localized_message("ru", "new_users_found_by_complex")
+        response_msg = get_localized_message('ru', 'new_users_found_by_complex')
         await bot.send_message(message.from_user.id, response_msg)
 
 
 
-@employer_router.callback_query(lambda c: c.data in ["user_next_page", "user_prev_page"])
+@employer_router.callback_query(lambda c: c.data in ['user_next_page', 'user_prev_page'])
 async def change_user_page(callback_query: types.CallbackQuery, state: FSMContext):
     await change_user_page_func(callback_query, state, bot)
 
+
+
+@main_router.message(lambda message: message.text == '/test')
+async def test(message: types.Message, state: FSMContext):
+    user = get_user_by_id(970311146)
+    user.update({'residential_complex_id':1})
+    await bot.send_message(message.from_user.id, f"Вот текст: {user.residential_complex.name}")
 
 async def main():
     # await get_payment_notification(bot) Допилить

@@ -155,7 +155,7 @@ async def send_verification_request(unverified_user_tg_id: int, bot):
                     f"Email: {user.email}\n"
                     f"Адрес: {user.address}\n"
                     f"Квартира: {user.apartment}\n"
-                    f"Жилой комплекс: {user.residential_complex}")
+                    f"Жилой комплекс: {get_residential_by_id(user.residential_complex_id).name}")
 
     for empl in get_all_confirmed_employers():
         await send_message_to_empl(bot, empl.telegram_id, message_text, reply_markup=await get_verif_markup(user.telegram_id))
@@ -232,7 +232,6 @@ async def apartment_selected(message: types.Message, state: FSMContext):
 @registration_router.message(RegistrationState.apartment)
 async def residential_complex_selected(message: types.Message, state: FSMContext):
     tg_id = message.from_user.id
-    username = message.from_user.username
     residential_complex = message.text
 
     if residential_complex in [complex.name for complex in get_all_residentials()]:
@@ -241,8 +240,6 @@ async def residential_complex_selected(message: types.Message, state: FSMContext
         if residential_complex_id:
             update_user(tg_id, {
                                     'residential_complex_id':residential_complex_id,
-                                    'username': username,
-                                    'tg_link': 'https://t.me/' + username,
                                 })
             await state.clear()
 
@@ -325,9 +322,10 @@ async def full_name_selected(message: types.Message, state: FSMContext):
 async def role_selected(query: types.CallbackQuery, state: FSMContext):
     role = role_texts.get(query.data)
     tg_id = query.from_user.id
+    username = query.from_user.username
 
     if role == 'Житель':
-        create_user(tg_id, delete_if_exists=True)
+        create_user(tg_id, username, delete_if_exists=True)
         await state.set_state(RegistrationState.role)
     elif role == 'Сотрудник УК':
         create_employer(tg_id, delete_if_exists=True)
