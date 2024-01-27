@@ -3,7 +3,9 @@ from aiogram import BaseMiddleware
 from aiogram.types import TelegramObject
 
 from handlers.localization import Lang
-from db.db_config import User, Session
+
+from db.db_config import User
+from utils.db_requests import Session
 
 
 class RegistrationMiddleware(BaseMiddleware):

@@ -1,18 +1,11 @@
-from sqlalchemy import create_engine, DateTime, Column, Integer, String, Boolean, ForeignKey, Date, text, Time, Text, BigInteger, JSON as Json, DECIMAL
+from sqlalchemy import create_engine, DateTime, TIMESTAMP, Column, Integer, String, Boolean, ForeignKey, Date, text, Time, Text, BigInteger, JSON as Json, DECIMAL
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
 import datetime
 import logging
 
-# переделай на локальную
-engine = create_engine('mysql+mysqlconnector://root:root@89.111.172.79/resident_db')
 
-# engine = create_engine('mysql://root:root@localhost/resident_db')
-
-# Создайте сессию для взаимодействия с базой данных
-Session = sessionmaker(bind=engine)
-session = Session()
 
 Base = declarative_base()
 
@@ -22,6 +15,7 @@ logger.setLevel(logging.DEBUG)
 log_formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s', datefmt='%d.%m.%Y %H:%M:%S')
 
 file_handler = logging.FileHandler('db/logs/DB_logs.log', encoding='utf-8')
+# file_handler = logging.FileHandler('logs/DB_logs.log', encoding='utf-8')
 file_handler.setFormatter(log_formatter)
 
 logger.addHandler(file_handler)
@@ -53,6 +47,9 @@ def delete_old_log_entries(log_file_path, days_to_keep=7):
 
 log_file_path = 'my_log.log'
 # delete_old_log_entries(log_file_path, 7)
+
+# class BaseClass(Base):
+#     pass
 
 class User(Base):
     __tablename__ = 'user'
@@ -100,7 +97,6 @@ class User(Base):
           
     @classmethod
     def get_all(cls):
-        logger.info(f"Запрос всех пользователей")
         all_users = cls.get_session().query(cls).all()
         return all_users
 
@@ -121,7 +117,7 @@ class User(Base):
     def get_all_unconfirmed_users(cls):
         logger.info(f"Запрос всех неподтвержденных пользователей")
         try:
-            query = text(f"SELECT * FROM resident_db.user WHERE is_confirmed = 0")
+            query = text(f"SELECT * FROM resident_bot_db.user WHERE is_confirmed = 0")
             all_unconfirmed_users = cls.get_session().execute(query).fetchall()
             if all_unconfirmed_users:
                 return all_unconfirmed_users
@@ -136,7 +132,7 @@ class User(Base):
     def get_all_confirmed_users(cls):
         logger.info(f"Запрос всех подтвержденных пользователей")
         try:
-            query = text(f"SELECT telegram_id FROM resident_db.user WHERE is_confirmed = 1")
+            query = text(f"SELECT telegram_id FROM resident_bot_db.user WHERE is_confirmed = 1")
             all_confirmed_users = cls.get_session().execute(query).fetchall()
             if all_confirmed_users:
                 return all_confirmed_users
@@ -258,7 +254,7 @@ class User(Base):
 
     def update(self, updated_data):
         logger.info(f"Запрос на обновление пользователя {updated_data}")
-        session = Session()
+        session = self.__class__.get_session()
         try:
             user = session.get(User, self.telegram_id)
             if user:
@@ -334,7 +330,7 @@ class UserRole(Base):
     def get_role_id_by_role_name(cls, role_name):
         logger.info(f"Запрос id роли пользователя по имени роли")
         try:
-            sql = text(f"SELECT role_id FROM resident_db.user_role WHERE role = '{role_name}'")
+            sql = text(f"SELECT role_id FROM resident_bot_db.user_role WHERE role = '{role_name}'")
             role = cls.get_session().execute(sql, {"role_name": role_name}).fetchone()
             if role:
                 return role[0] 
@@ -435,7 +431,7 @@ class Employer(Base):
     def get_all_by_role(cls, role_name):
         try:
             logger.info(f"Запрос на получение всех сотрудников с ролью '{role_name}'")
-            query = text(f"""SELECT * FROM resident_db.employer 
+            query = text(f"""SELECT * FROM resident_bot_db.employer 
                          JOIN employer_role ON employer.role_id = employer_role.role_id 
                          WHERE employer_role.role = '{role_name}'""")
             employers_with_role = cls.get_session().execute(query).fetchall()
@@ -481,7 +477,7 @@ class Employer(Base):
     @classmethod
     def get_by_id(cls, telegram_id):
         try:
-            sql = text(f"SELECT * FROM resident_db.employer WHERE telegram_id = '{telegram_id}'")
+            sql = text(f"SELECT * FROM resident_bot_db.employer WHERE telegram_id = '{telegram_id}'")
             employer = cls.get_session().execute(sql, {"telegram_id": telegram_id}).fetchone()
             if employer:
                 return employer
@@ -519,7 +515,7 @@ class Employer(Base):
     def get_all_confirmed_employers(cls):
         logger.info(f"Запрос всех подтвержденных сотрудников")
         try:
-            query = text(f"SELECT * FROM resident_db.employer WHERE is_confirmed = 1")
+            query = text(f"SELECT * FROM resident_bot_db.employer WHERE is_confirmed = 1")
             all_confirmed_employers = cls.get_session().execute(query).fetchall()
             if all_confirmed_employers:
                 return all_confirmed_employers
@@ -615,7 +611,7 @@ class EmployerRole(Base):
     @classmethod
     def get_role_id_by_role_name(cls, role_name):
         try:
-            sql = text(f"SELECT role_id FROM resident_db.employer_role WHERE role = '{role_name}'")
+            sql = text(f"SELECT role_id FROM resident_bot_db.employer_role WHERE role = '{role_name}'")
             role = cls.get_session().execute(sql, {"role_name": role_name}).fetchone()
             if role:
                 return role[0] 
@@ -720,9 +716,9 @@ class Ticket(Base):
                                 ticket.details,
                                 ticket.images
                             FROM
-                                resident_db.ticket
+                                resident_bot_db.ticket
                                     JOIN
-                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
                             ORDER BY date DESC
                          """)
             all_tickets = cls.get_session().execute(query).fetchall()
@@ -745,9 +741,9 @@ class Ticket(Base):
                                 ticket.details,
                                 ticket.images
                             FROM
-                                resident_db.ticket
+                                resident_bot_db.ticket
                                     JOIN
-                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
                             WHERE
                                 ticket.is_solved = 1
                          """)
@@ -771,9 +767,9 @@ class Ticket(Base):
                                 ticket.details,
                                 ticket.images
                             FROM
-                                resident_db.ticket
+                                resident_bot_db.ticket
                                     JOIN
-                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
                             WHERE
                                 ticket.is_solved = 0
                          """)
@@ -797,9 +793,9 @@ class Ticket(Base):
                                 ticket.details,
                                 ticket.images
                             FROM
-                                resident_db.ticket
+                                resident_bot_db.ticket
                                     JOIN
-                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
                             WHERE
                                 user_id = {telegram_id} AND is_solved = {is_solved}
                          """)
@@ -841,11 +837,11 @@ class Ticket(Base):
                                 user.telegram_id,  
                                 user.tg_link  
                             FROM
-                                resident_db.ticket
+                                resident_bot_db.ticket
                                     JOIN
-                                resident_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
                                     JOIN
-                                resident_db.user ON ticket.user_id = user.telegram_id
+                                resident_bot_db.user ON ticket.user_id = user.telegram_id
                             WHERE ticket_id = {ticket_id}
                          """)
             all_tickets = cls.get_session().execute(query).one()
@@ -1000,7 +996,7 @@ class TicketType(Base):
     @classmethod
     def get_id_by_ticket_type_name(cls, ticket_type):
         try:
-            sql = text(f"SELECT ticket_type_id FROM resident_db.ticket_type WHERE type = '{ticket_type}'")
+            sql = text(f"SELECT ticket_type_id FROM resident_bot_db.ticket_type WHERE type = '{ticket_type}'")
             result = cls.get_session().execute(sql, {"ticket_type": ticket_type}).fetchone()
             if result:
                 return result[0] 
@@ -1097,7 +1093,7 @@ class News(Base):
     @classmethod
     def get_all(cls):
         try:
-            sql = text("SELECT * FROM resident_db.news ORDER BY news_id DESC")
+            sql = text("SELECT * FROM resident_bot_db.news ORDER BY news_id DESC")
             session = cls.get_session()
             result = session.execute(sql)
             all_news = result.fetchall()
@@ -1331,7 +1327,7 @@ class Poll(Base):
     @classmethod
     def get_by_id(cls, poll_tg_id):
         try:
-            sql = text(f"SELECT * FROM resident_db.poll WHERE poll_tg_id = '{poll_tg_id}'")
+            sql = text(f"SELECT * FROM resident_bot_db.poll WHERE poll_tg_id = '{poll_tg_id}'")
             poll = cls.get_session().execute(sql, {"poll_tg_id": poll_tg_id}).fetchone()
             if not poll:
                 return None
@@ -1383,10 +1379,13 @@ class Poll(Base):
     @classmethod
     def delete_by_id(cls, poll_tg_id):
         try:
-            employer = cls.get_session().query(cls).filter_by(poll_tg_id=poll_tg_id).one()
-            cls.get_session().delete(employer)
-            cls.get_session().commit()
-            return False
+            poll = cls.get_session().query(cls).filter_by(poll_tg_id=poll_tg_id).one()
+            if poll:
+                cls.get_session().delete(poll)
+                cls.get_session().commit()
+                return True
+            else:
+                return False
         except NoResultFound:
             return False
         except Exception as e:
@@ -1436,7 +1435,7 @@ class ResidentialComplex(Base):
     @classmethod
     def get_all(cls):
         try:
-            query = text(f"SELECT residential_complex_id, name FROM resident_db.residential_complex;")
+            query = text(f"SELECT residential_complex_id, name FROM resident_bot_db.residential_complex;")
             all_complexes = cls.get_session().execute(query).fetchall()
             if all_complexes:
                 return all_complexes
@@ -1448,7 +1447,7 @@ class ResidentialComplex(Base):
     @classmethod
     def get_id_by_name(cls, name):
         try:
-            sql = text(f"SELECT residential_complex_id FROM resident_db.residential_complex WHERE name = '{name}'")
+            sql = text(f"SELECT residential_complex_id FROM resident_bot_db.residential_complex WHERE name = '{name}'")
             complex = cls.get_session().execute(sql, {"name": name}).fetchone()
             if not complex:
                 return None
@@ -1460,7 +1459,7 @@ class ResidentialComplex(Base):
     @classmethod
     def get_by_id(cls, residential_complex_id):
         try:
-            sql = text(f"SELECT * FROM resident_db.residential_complex WHERE residential_complex_id = '{residential_complex_id}'")
+            sql = text(f"SELECT * FROM resident_bot_db.residential_complex WHERE residential_complex_id = '{residential_complex_id}'")
             complex = cls.get_session().execute(sql, {"residential_complex_id": residential_complex_id}).fetchone()
             if not complex:
                 return None
@@ -1477,13 +1476,191 @@ class ResidentialComplex(Base):
         except Exception as e:
             logger.error(f"Не удалось закрыть сессию: {str(e)}")
 
-if __name__ == "__main__":
-    # Запрос данных
-    User.set_session(session)
-    users = User.get_all()
 
-    ResidentialComplex.set_session(Session())
-    print(ResidentialComplex.get_all())
+class MeterReading(Base):
+    __tablename__ = 'meter_readings'
+
+    meter_readings_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('user.telegram_id'))
+    cold_water = Column(Integer)
+    hot_water = Column(Integer)
+    datetime = Column(TIMESTAMP, nullable=False)
+    is_approved = Column(Boolean)
+    is_checked = Column(Boolean)
+
+    user = relationship("User")
+
+    _session = None  
+    def __init__(self, **user_data):
+        super().__init__(**user_data)
+
+    @classmethod
+    def set_session(cls, session):
+        cls._session = session
+
+    @classmethod
+    def get_session(cls):
+        return cls._session
+
+
+    @classmethod
+    def close_session(cls):
+        try:
+            if cls._session:
+                cls._session.close()
+        except Exception as e:
+            logger.error(f"Не удалось закрыть сессию: {str(e)}")
+
+
+    @classmethod
+    def get_all(cls):
+        try:
+            session = cls.get_session()
+            all_meters = session.query(cls).all()
+            return all_meters
+        except Exception as e:
+            logger.error(f"Не удалось получить все показания: {str(e)}")
+            return None
+
+    @classmethod
+    def get_by_id(cls, meter_readings_id):
+        try:
+            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE meter_readings_id = '{meter_readings_id}'")
+            complex = cls.get_session().execute(sql, {"meter_readings_id": meter_readings_id}).fetchone()
+            if not complex:
+                return None
+            return complex
+        except Exception as e:
+            logger.error(f"Не удалось получить показания по id: {str(e)}")
+            return None
+        
+    @classmethod
+    def get_all_by_user_id(cls, user_id):
+        try:
+            sql = text(
+                f"""SELECT 
+                        meter_readings.*
+                    FROM
+                        resident_bot_db.meter_readings
+                            JOIN
+                        resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                    WHERE
+                        user_id = {user_id}
+                """
+            )
+            session = cls.get_session()
+            result = session.execute(sql, {"user_id": user_id}).fetchall()
+            return result
+        except Exception as e:
+            logger.error(f"Не удалось получить показания по user_id = {user_id}: {str(e)}")
+            return None
+        
+    
+    @classmethod
+    def get_last_by_user_id(cls, user_id):
+        try:
+            sql = text(
+                f"""
+                    SELECT 
+                        meter_readings.*
+                    FROM
+                        resident_bot_db.meter_readings
+                            JOIN
+                        resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                    WHERE
+                        user_id = {user_id};
+                    ORDER BY meter_readings.datetime DESC
+                """
+            )
+            session = cls.get_session()
+            result = session.execute(sql, {"user_id": user_id}).fetchone()
+            if not result:
+                return None
+            return result
+        except Exception as e:
+            logger.error(f"Не удалось получить последние показания по user_id = {user_id}: {str(e)}")
+            return None
+        
+    @classmethod
+    def delete_by_id(cls, meter_id):
+        try:
+            meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
+            cls.get_session().delete(meter)
+            cls.get_session().commit()
+            return True
+        except NoResultFound:
+            return False
+        except Exception as e:
+            logger.error(f"Не удалось удалить показания: {str(e)}")
+            return False
+    
+    @classmethod
+    def aprove_by_id(cls, meter_id):
+        try:
+            meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
+            if meter:
+                meter.is_approved = False
+                cls.get_session().commit()
+                return True
+            else:
+                return False
+        except NoResultFound:
+            return False
+        except Exception as e:
+            logger.error(f"Не удалось подтвердить показания: {str(e)}")
+            return False
+        
+    @classmethod
+    def check_by_id(cls, meter_id):
+        try:
+            meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
+            if meter:
+                meter.is_checked = True
+                cls.get_session().commit()
+                return True
+            else: 
+                return False
+        except NoResultFound:
+            return False
+        except Exception as e:
+            logger.error(f"Не удалось просмотреть показания: {str(e)}")
+            return False
+        
+        
+    @classmethod
+    def create_meter(cls, meter_data):
+        try:
+            new_meter = cls(**meter_data)
+            cls.get_session().add(new_meter)
+            cls.get_session().commit()
+            cls.get_session().close() 
+            return new_meter
+        except Exception as e:
+            logger.error(f"Ошибка при создании показаний: ", str(e))
+            return None
+   
+
+if __name__ == "__main__":
+    engine = create_engine('mysql+mysqlconnector://root:some_pass123@89.111.172.79/resident_bot_db')
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+     # # Запрос данных
+    # User.set_session(session)
+    # users = User.get_all()
+    # print(users)
+
+    MeterReading.set_session(session)
+    print(MeterReading.get_all_by_user_id(970311146))
+    print(MeterReading.get_last_by_user_id(970311146))
+    MeterReading.set_session(Session())
+    print(MeterReading.get_all())
+
+   
+    
+   
+    # ResidentialComplex.set_session(Session())
+    # print(ResidentialComplex.get_all())
 
     # # new_user_data = {
     # #     'telegram_id': 228,

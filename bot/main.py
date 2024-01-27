@@ -500,6 +500,12 @@ async def test(message: types.Message, state: FSMContext):
     user.update({'residential_complex_id':1})
     await bot.send_message(message.from_user.id, f"Вот текст: {user.residential_complex.name}")
 
+
+@employer_router.message(lambda message: message.text == 'Показания пользователей')
+async def show_meter_readings(message: types.Message, state: FSMContext):
+    all_meters = get_all_meters()
+    await bot.send_message(message.from_user.id, f"{all_meters}")
+
 async def main():
     # await get_payment_notification(bot) Допилить
     create_directories()

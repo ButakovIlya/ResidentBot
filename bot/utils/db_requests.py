@@ -1,6 +1,15 @@
 import functools
 from db.db_config import *
 
+# переделай на локальную
+engine = create_engine('mysql+mysqlconnector://root:some_pass123@89.111.172.79/resident_bot_db')
+# engine = create_engine('mysql://root:root@localhost/resident_db')
+
+# Создайте сессию для взаимодействия с базой данных
+Session = sessionmaker(bind=engine)
+session = Session()
+
+
 def get_user(tg_id: int) -> User:
     try:
         User.set_session(Session())
@@ -365,3 +374,62 @@ def get_residential_by_id(residential_complex_id) -> ResidentialComplex:
         return None
     finally:
         ResidentialComplex.close_session()
+
+
+
+def create_meter_readings(meter_data) -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        new_meter = MeterReading.create_meter(meter_data)
+        return new_meter
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+
+def get_all_meters() -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        all_meters = MeterReading.get_all()
+        return all_meters
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+        
+def get_meter_by_id(meter_id) -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        meter = MeterReading.get_by_id(meter_id)
+        return meter
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+                
+def get_all_meters_by_user(user_id) -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        all_meters = MeterReading.get_all_by_user_id(user_id)
+        return all_meters
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+
+
+def get_last_meters_by_user(user_id) -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        all_meters = MeterReading.get_last_by_user_id(user_id)
+        return all_meters
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+
