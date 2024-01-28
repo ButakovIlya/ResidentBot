@@ -94,6 +94,13 @@ def get_employer_by_id(employer_id: int) -> Employer:
     finally:
         Employer.close_session()
 
+def is_employer(employer_id: int) -> bool:
+    try:
+        Employer.set_session(Session())
+        return Employer.exists(employer_id)
+    finally:
+        Employer.close_session()
+
 def get_all_employers_ids():
     try:
         Employer.set_session(session)
@@ -399,6 +406,29 @@ def get_all_meters() -> MeterReading:
         pass
         # MeterReading.close_session()
         
+
+def get_all_unchecked_meters() -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        all_meters = MeterReading.get_all_by_checked(False)
+        return all_meters
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+    
+def get_all_checked_meters() -> MeterReading:
+    try:
+        MeterReading.set_session(Session())
+        all_meters = MeterReading.get_all_by_checked(True)
+        return all_meters
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+    
 def get_meter_by_id(meter_id) -> MeterReading:
     try:
         MeterReading.set_session(Session())
@@ -433,3 +463,26 @@ def get_last_meters_by_user(user_id) -> MeterReading:
         pass
         # MeterReading.close_session()
 
+
+
+def aprove_meter_by_id(meter_id) -> Boolean:
+    try:
+        MeterReading.set_session(Session())
+        is_aproved = MeterReading.aprove_by_id(meter_id)
+        return is_aproved
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()
+    
+def decline_meter_by_id(meter_id) -> Boolean:
+    try:
+        MeterReading.set_session(Session())
+        is_declined = MeterReading.decline_by_id(meter_id)
+        return is_declined
+    except Exception:
+        return False
+    finally:
+        pass
+        # MeterReading.close_session()

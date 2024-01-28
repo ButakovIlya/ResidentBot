@@ -13,28 +13,37 @@ from dotenv import load_dotenv
 from StateGroups.NewsState import *
 from StateGroups.ProblemState import *
 from StateGroups.PollState import *
+
 from buttons.emploee_menu import emploee_menu_markup 
 from buttons.main_menu import main_menu_markup
 from buttons.issues_menu import tickets_markup
+from buttons.meters_menu import meters_markup
+from buttons.polls_menu import polls_markup, return_to_polls_menu
+from buttons.users_menu import users_markup
+from buttons.news_menu import news_markup
 from buttons.registration import select_role_markup
 from buttons.empl_back_to_menu import *
+
 from db.db_config import *
 from dict.issues_status import *
 from dict.problems_dict import problem_texts
+
 from handlers.contact import contact_uk_handler, extract_problem_description, problem_about_handler
 from handlers.issues import show_issues_handler
 from handlers.localization import Lang, get_localized_message
-from handlers.meter_data import meter_router
+from handlers.meter_data import meter_router, send_meter_data_func, send_meter_data_to_employer_func
 from handlers.news import *
 from handlers.users import *
 from handlers.check_tikects import *
 from handlers.registration import registration_router
 from handlers.profile import *
+
 from middleware.album import MediaGroupMiddleware
 from middleware.employer_verif import EmployeeMiddleware
 from middleware.message_log import MessagesLog
 from middleware.throttling import AntiSpamMiddleware
 from middleware.verification import RegistrationMiddleware
+
 from utils.all_employees_messenger import all_employees_messenger
 from utils.all_users_messenger import all_confirmed_users_messenger
 from utils.date_time import get_current_date_and_time
@@ -49,6 +58,7 @@ from handlers.callback_queries.ticket_handlers import *
 from handlers.callback_queries.ticket_handlers import *
 from handlers.callback_queries.poll_handlers import *
 from handlers.callback_queries.user_handlers import *
+from handlers.callback_queries.meters_handlers import *
 
 
 logging.basicConfig(level=logging.INFO)
@@ -110,13 +120,29 @@ async def return_to_main_menu(message: types.Message, state: FSMContext):
 # Delete in future
 @employer_router.message(lambda message: message.text == "Сотрудник")
 async def development_mode(message: types.Message):
-    await bot.send_message(message.from_user.id, "Вы вошли в меню разработки Сотрудника",
-                           reply_markup=emploee_menu_markup)
+    await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
+
 
 @employer_router.message(lambda message: message.text == "Вернуться назад")
 async def return_to_main_menu(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
+
+
+@employer_router.message(lambda message: message.text == "Вернуться в меню сотрудника")
+async def return_to_main_menu(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer(Lang.strings["ru"]["return_to_employer_menu"], reply_markup=emploee_menu_markup)
+
+
+@employer_router.message(lambda message: message.text == "Вернуться в меню жителей")
+async def return_to_main_menu(message: types.Message, state: FSMContext):
+    await message.answer(Lang.strings["ru"]["return_to_users_menu"], reply_markup=users_markup)
+
+
+@employer_router.message(lambda message: message.text == "Вернуться в меню новостей")
+async def return_to_main_menu(message: types.Message, state: FSMContext):
+    await message.answer(Lang.strings["ru"]["return_to_news_menu"], reply_markup=news_markup)
 
 
 @main_router.message(lambda message: message.text == "Связаться с УК")
@@ -336,6 +362,20 @@ async def show_house_statistics(message: types.Message):
 async def show_issues(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, "Выберите категорию заявок:", reply_markup=tickets_markup)
 
+@employer_router.message(lambda message: message.text == "Меню жителей")
+async def show_issues(message: types.Message, state: FSMContext):
+    await bot.send_message(message.chat.id, "Вы перенаправлены в управление жителями:", reply_markup=users_markup)
+
+
+@employer_router.message(lambda message: message.text == "Меню опросов")
+async def show_issues(message: types.Message, state: FSMContext):
+    await bot.send_message(message.chat.id, "Вы перенаправлены в управление опросами:", reply_markup=polls_markup)
+
+@employer_router.message(lambda message: message.text == "Меню новостей")
+async def show_issues(message: types.Message, state: FSMContext):
+    await bot.send_message(message.chat.id, "Вы перенаправлены в управление новостями:", reply_markup=news_markup)
+
+
 @employer_router.message(lambda message: message.text in ["Все заявки", "Закрытые заявки", "Открытые заявки"])
 async def show_issues_by_status(message: types.Message, state: FSMContext):
     await show_issues_handler(bot, message, state, message.text.split(' ')[0])
@@ -369,7 +409,7 @@ async def delete_ticket(callback_query: types.CallbackQuery, state: FSMContext):
 @employer_router.message(lambda message: message.text == "Создать опрос")
 async def set_poll(message: types.Message, state:FSMContext):
     await state.set_state(PollState.WaitingForPoll)
-    await bot.send_message(message.from_user.id, "Создайте и отправьте ваш опрос. Используйте кнопку прикрепить(в нижнем левом углу) -> Опрос",reply_markup=return_back_button_markup)
+    await bot.send_message(message.from_user.id, "Создайте и отправьте ваш опрос. Используйте кнопку прикрепить(в нижнем левом углу) -> Опрос",reply_markup=return_to_polls_menu)
 
 
 @employer_router.callback_query(lambda c: c.data.startswith("poll_"))
@@ -412,6 +452,11 @@ async def create_poll(message: types.Message, state:FSMContext):
 
         await state.clear()
     else:
+        if message.text == 'Вернуться в меню опросов':
+            await bot.send_message(message.chat.id, "Вы перенаправлены в управление опросами.", reply_markup=polls_markup)
+            state.clear()
+            return
+
         await bot.send_message(
             chat_id=message.from_user.id,
             text="Ошибка, Вы прикрепили не опрос!",
@@ -501,10 +546,46 @@ async def test(message: types.Message, state: FSMContext):
     await bot.send_message(message.from_user.id, f"Вот текст: {user.residential_complex.name}")
 
 
-@employer_router.message(lambda message: message.text == 'Показания пользователей')
+@employer_router.message(lambda message: message.text == 'Показания жителей')
 async def show_meter_readings(message: types.Message, state: FSMContext):
-    all_meters = get_all_meters()
-    await bot.send_message(message.from_user.id, f"{all_meters}")
+    await bot.send_message(message.chat.id, "Вы перенаправлены в управление показаниями жителей:", reply_markup=meters_markup)
+
+
+@meter_router.message(lambda message: message.text == "Мои показания")
+async def send_meter_data(message: types.Message, state: FSMContext):
+    await send_meter_data_func(state, bot, message.from_user.id)
+
+@employer_router.message(lambda message: message.text == "Все показания")
+async def send_meter_data(message: types.Message, state: FSMContext):
+    await send_meter_data_to_employer_func(state, bot, message.from_user.id)
+
+@employer_router.message(lambda message: message.text == "Непроверенные показания")
+async def send_meter_data(message: types.Message, state: FSMContext):
+    await send_meter_data_to_employer_func(state, bot, message.from_user.id, False)
+
+@employer_router.message(lambda message: message.text == "Проверенные показания")
+async def send_meter_data(message: types.Message, state: FSMContext):
+    await send_meter_data_to_employer_func(state, bot, message.from_user.id, True)
+
+
+@meter_router.callback_query(lambda c: c.data in ['prev_meter_page', 'next_meter_page'])
+async def change_meter_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_meter_page_func(callback_query, state, bot)
+
+
+@meter_router.callback_query(lambda c: c.data.startswith("meter_"))
+async def show_meter_details(callback_query: types.CallbackQuery):
+    await show_meter_by_id_func(callback_query, bot, logger)
+
+
+@employer_router.callback_query(lambda c: c.data.startswith("aprove_meter_"))
+async def aprove_meter(callback_query: types.CallbackQuery, state: FSMContext):
+    await aprove_meter_func(callback_query, bot)
+
+@employer_router.callback_query(lambda c: c.data.startswith("decline_meter_"))
+async def decline_meter(callback_query: types.CallbackQuery, state: FSMContext):
+    await decline_meter_func(callback_query, bot)
+
 
 async def main():
     # await get_payment_notification(bot) Допилить

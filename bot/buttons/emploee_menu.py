@@ -5,20 +5,12 @@ emploee_menu_markup = ReplyKeyboardMarkup(
     resize_keyboard=True,
     keyboard=[
         [
-            KeyboardButton(text="Заявки жителей"),
-            KeyboardButton(text="Новости")
-        ],
-        [
-            KeyboardButton(text="Создать новость"),
-            KeyboardButton(text="Создать опрос")
-        ],
-        [
-            KeyboardButton(text="Активные опросы"),
-            KeyboardButton(text="Завершенные опросы"),
-        ],
-        [
+            KeyboardButton(text="Меню жителей"),
             KeyboardButton(text="Аккаунт"),
-            KeyboardButton(text="Мои жители"),
+        ],
+        [
+            KeyboardButton(text="Меню новостей"),
+            KeyboardButton(text="Меню опросов")
         ]
     ]
 )

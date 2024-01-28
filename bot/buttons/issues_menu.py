@@ -9,7 +9,7 @@ tickets_markup = ReplyKeyboardMarkup(
                 KeyboardButton(text="Открытые заявки"),
             ],
             [
-                KeyboardButton(text="Вернуться назад"),
+                KeyboardButton(text="Вернуться в меню жителей"),
             ],
         ]
     )   

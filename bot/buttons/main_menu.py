@@ -14,6 +14,10 @@ main_menu_markup = ReplyKeyboardMarkup(
         [
             KeyboardButton(text="Проверить мои заявки"),
             KeyboardButton(text="Передача показаний")
+        ],
+        [
+            KeyboardButton(text="Мои показания"),
+            # KeyboardButton(text="Передача показаний")
         ]
     ]
 )

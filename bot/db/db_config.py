@@ -1484,9 +1484,9 @@ class MeterReading(Base):
     user_id = Column(Integer, ForeignKey('user.telegram_id'))
     cold_water = Column(Integer)
     hot_water = Column(Integer)
-    datetime = Column(TIMESTAMP, nullable=False)
+    datetime = Column(TIMESTAMP)
     is_approved = Column(Boolean)
-    is_checked = Column(Boolean)
+    is_checked = Column(Boolean, default=0)
 
     user = relationship("User")
 
@@ -1523,13 +1523,60 @@ class MeterReading(Base):
             return None
 
     @classmethod
+    def get_all_by_checked(cls, is_checked):
+        try:
+            sql = text(
+                f"""SELECT 
+                        meter_readings.*,
+                        user.*
+                    FROM
+                        resident_bot_db.meter_readings
+                            JOIN
+                        resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                    WHERE
+                        is_checked = {is_checked}
+                """
+            )
+            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE is_checked = {is_checked}")
+            object = cls.get_session().execute(sql, {'is_checked': is_checked}).fetchall()
+            if not object:
+                return None
+            return object
+        except Exception as e:
+            logger.error(f"Не удалось получить все показания: {str(e)}")
+            return None
+        
+    
+    @classmethod
+    def get_all_by_checked_and_user_id(cls, is_checked, user_id):
+        try:
+            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE is_checked = {is_checked} AND user_id = {user_id}")
+            object = cls.get_session().execute(sql, {'is_checked':is_checked, 'user_id':user_id}).fetchall()
+            if not object:
+                return None
+            return object
+        except Exception as e:
+            logger.error(f"Не удалось получить все показания: {str(e)}")
+            return None
+
+        
+    @classmethod
     def get_by_id(cls, meter_readings_id):
         try:
-            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE meter_readings_id = '{meter_readings_id}'")
-            complex = cls.get_session().execute(sql, {"meter_readings_id": meter_readings_id}).fetchone()
-            if not complex:
+            sql = text(f"""
+                            SELECT 
+                                *
+                            FROM
+                                resident_bot_db.meter_readings
+                                    JOIN
+                                resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                            WHERE
+                                meter_readings_id = {meter_readings_id}
+                        """)
+            object = cls.get_session().execute(sql, {"meter_readings_id": meter_readings_id}).fetchone()
+            if not object:
                 return None
-            return complex
+            return object
         except Exception as e:
             logger.error(f"Не удалось получить показания по id: {str(e)}")
             return None
@@ -1568,8 +1615,9 @@ class MeterReading(Base):
                             JOIN
                         resident_bot_db.user ON meter_readings.user_id = user.telegram_id
                     WHERE
-                        user_id = {user_id};
+                        user_id = {user_id}
                     ORDER BY meter_readings.datetime DESC
+                    LIMIT 1;
                 """
             )
             session = cls.get_session()
@@ -1599,7 +1647,25 @@ class MeterReading(Base):
         try:
             meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
             if meter:
+                meter.is_approved = True
+                meter.is_checked = True
+                cls.get_session().commit()
+                return True
+            else:
+                return False
+        except NoResultFound:
+            return False
+        except Exception as e:
+            logger.error(f"Не удалось подтвердить показания: {str(e)}")
+            return False
+        
+    @classmethod
+    def decline_by_id(cls, meter_id):
+        try:
+            meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
+            if meter:
                 meter.is_approved = False
+                meter.is_checked = True
                 cls.get_session().commit()
                 return True
             else:
@@ -1633,7 +1699,6 @@ class MeterReading(Base):
             new_meter = cls(**meter_data)
             cls.get_session().add(new_meter)
             cls.get_session().commit()
-            cls.get_session().close() 
             return new_meter
         except Exception as e:
             logger.error(f"Ошибка при создании показаний: ", str(e))
@@ -1656,6 +1721,8 @@ if __name__ == "__main__":
     MeterReading.set_session(Session())
     print(MeterReading.get_all())
 
+    print(MeterReading.aprove_by_id(1))
+    print(MeterReading.check_by_id(1))
    
     
    
