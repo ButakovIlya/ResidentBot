@@ -1,8 +1,9 @@
 from utils.db_requests import get_meter_by_id, get_all_meters_by_user, aprove_meter_by_id, decline_meter_by_id, is_employer
-from handlers.meter_data import send_meter_data_func, get_meter_data, get_meter_data_for_employer
+from handlers.meter_readings import send_meter_data_func, get_meter_data, get_meter_data_for_employer
 from handlers.localization import Lang
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from buttons.emploee_menu import emploee_menu_markup
+from buttons.meters_menu import meters_markup
 
 async def change_meter_page_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
@@ -60,13 +61,16 @@ async def aprove_meter_func(callback_query, bot):
 
     if meter_data:
         if aprove_meter_by_id(meter_id):
-            await bot.send_message(from_user_id, f"Показания от {meter_data.datetime} подтвержены.", reply_markup=emploee_menu_markup)
+            new_text = '\n\n✅ Показания успешно подтверждены' 
+            await callback_query.bot.edit_message_text(callback_query.message.text + new_text,
+                                          callback_query.message.chat.id, callback_query.message.message_id)
+            # await bot.send_message(from_user_id, f"Показания от {meter_data.datetime} подтвержены.", reply_markup=meters_markup)
         else:
-            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=emploee_menu_markup)
+            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=meters_markup)
     else:
         await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
 
-    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+    # await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
 async def decline_meter_func(callback_query, bot):
@@ -76,11 +80,13 @@ async def decline_meter_func(callback_query, bot):
 
     if meter_data:
         if decline_meter_by_id(meter_id):
-            await bot.send_message(from_user_id, f"Показания от {meter_data.datetime} отклонены.", reply_markup=emploee_menu_markup)
+            new_text = '\n\n❌ Показания отклонены!' 
+            await callback_query.bot.edit_message_text(callback_query.message.text + new_text,
+                                          callback_query.message.chat.id, callback_query.message.message_id)
         else:
-            await bot.send_message(from_user_id, f"Произошла ошибка при отклонении показаний!", reply_markup=emploee_menu_markup)
+            await bot.send_message(from_user_id, f"Произошла ошибка при отклонении показаний!", reply_markup=meters_markup)
     else:
         await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
 
-    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+    # await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 

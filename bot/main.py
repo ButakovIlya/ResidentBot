@@ -31,7 +31,7 @@ from dict.problems_dict import problem_texts
 from handlers.contact import contact_uk_handler, extract_problem_description, problem_about_handler
 from handlers.issues import show_issues_handler
 from handlers.localization import Lang, get_localized_message
-from handlers.meter_data import meter_router, send_meter_data_func, send_meter_data_to_employer_func
+from handlers.meter_readings import meter_router, send_meter_data_func, send_meter_data_to_employer_func
 from handlers.news import *
 from handlers.users import *
 from handlers.check_tikects import *

@@ -37,6 +37,7 @@ class Lang:
             "user_is_banned":"Вы были заблокированы в данном боте!",
             "new_users_found_by_complex":"В данном ЖК нету жителей!",
             "user_profile_error":"Профиль пользователя не найден!",
+            "meter_no_meters":"Показаний на проверку нет!",
             
         },
         "en": {

@@ -134,13 +134,10 @@ async def send_meter_data_func(state: FSMContext, bot, user_id):
 
 async def send_meter_data_to_employer_func(state: FSMContext, bot, user_id, is_checked=None):
     if is_checked == True:
-        print(is_checked)
         all_meters = get_all_checked_meters()
     elif is_checked == False:
-        print(is_checked)
         all_meters = get_all_unchecked_meters()
     else: 
-        print(is_checked)
         all_meters = get_all_meters()
 
 
@@ -160,7 +157,7 @@ async def send_meter_data_to_employer_func(state: FSMContext, bot, user_id, is_c
 
         await bot.send_message(user_id, Lang.strings["ru"]["meter_select_reply"], reply_markup=news_markup, parse_mode=ParseMode.MARKDOWN)
     else:
-        await bot.send_message(user_id, Lang.strings["ru"]["ticket_select_error"])
+        await bot.send_message(user_id, Lang.strings["ru"]["meter_no_meters"])
 
 
 async def get_meter_data(meter_id, logger):
@@ -195,17 +192,20 @@ async def get_meter_data_for_employer(meter_id, logger):
                 f"Инофрмация о жителе:\n"
                 f"ФИО жителя: {meter.last_name + ' ' + meter.first_name + ' ' + meter.patronymic}\n"
                 f"Адрес: {meter.address}\n"
-                f"Квартира: {meter.apartment}\n\n"
+                f"Квартира: {meter.apartment}\n"
+                f"Контакт: @{meter.username}\n"
+                f"Связаться: {meter.tg_link}\n\n"
+
                 f"Инофрмация о показаниях:\n"
                 f"Номер: {meter.meter_readings_id}\n"
                 f"Холодная вода: {meter.cold_water}\n"
                 f"Горячая вода: {meter.hot_water}\n"
                 f"Дата: {(str(meter.datetime).split()[0])}\n"
                 f"Время: {str(meter.datetime).split()[1]}\n"
-                f"Просмотрена: {'Да' if meter.is_checked else 'Нет'}\n"
+
             )
             if meter.is_checked:
-                meter_data += f"Одобрена: {'Да' if meter.is_approved else 'Нет'}"
+                meter_data += f"\n\n{'✅ Показания подтверждены.' if meter.is_approved else '❌ Показания отклонены!'}"
 
             return meter_data
         else:   
