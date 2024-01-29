@@ -3,7 +3,7 @@ from aiogram.types import InputMediaPhoto
 from utils.db_requests import get_all_confirmed_users
 
 
-async def all_confirmed_users_messenger(files_id, caption, bot):
+async def all_confirmed_users_messenger(files_id, caption, bot, logger):
     users = get_all_confirmed_users()
 
     for user in users:
@@ -11,7 +11,7 @@ async def all_confirmed_users_messenger(files_id, caption, bot):
         try:
             chat = await bot.get_chat(tg_id)
             if not chat.id:
-                print(f"Бот не может отправлять сообщения в чат {tg_id}.")
+                logger.error(f"Бот не может отправлять сообщения в чат {tg_id}.")
                 continue
 
             if files_id:
@@ -24,4 +24,4 @@ async def all_confirmed_users_messenger(files_id, caption, bot):
                 await bot.send_message(tg_id, caption)
 
         except Exception as e:
-            print(f"Произошла ошибка при отправке в чат {tg_id}: {e}")
+            logger.error(f"Произошла ошибка при отправке в чат {tg_id}: {e}")

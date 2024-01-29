@@ -1,6 +1,6 @@
 from utils.db_requests import get_news_by_id, delete_news_by_id, get_all_news
 from handlers.news import *
-from utils.db_image_loader import send_news_images_to_user, send_news_images_to_employer
+from handlers.utils.news import send_news_media_to_user, send_news_images_to_employer
 from buttons.emploee_menu import emploee_menu_markup 
 
 async def change_news_page_func(callback_query, state, bot):
@@ -33,7 +33,7 @@ async def show_news_details_func(callback_query, state, bot):
     if news_item:
         news_details = f"Заголовок: {news_item.topic}\n\n{news_item.body}"
 
-        await send_news_images_to_user(news_item, bot, user_id, news_details)
+        await send_news_media_to_user(news_item, bot, user_id, news_details)
        
     else:
         await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])

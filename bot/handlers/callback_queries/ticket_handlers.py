@@ -1,13 +1,13 @@
 from utils.db_requests import get_ticket_by_id, get_all_tickets, delete_ticket_by_id, close_ticket_by_id
-from utils.db_image_loader import send_ticket_images_to_user, send_ticket_images_to_employer
-from handlers.issues import show_issues_handler
+from handlers.utils.tickets import send_ticket_images_to_user, send_ticket_images_to_employer
+from handlers.tickets import show_issues_handler
 from handlers.localization import Lang
 from buttons.emploee_menu import emploee_menu_markup
 from buttons.main_menu import main_menu_markup
 
 from datetime import datetime
 
-async def show_unchecked_tikect_func(callback_query, state, bot):
+async def show_unchecked_ticket_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
     tikect_id = int(callback_query.data.split("_")[1])
@@ -39,6 +39,7 @@ async def change_ticket_page_func(callback_query, state, bot):
     await show_issues_handler(bot, callback_query, state)
 
     await bot.delete_message(user_id, message_id)
+
 
 async def show_issues_details_func(callback_query, state, bot):
     user_id = callback_query.from_user.id

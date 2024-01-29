@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 from handlers.localization import Lang
 
 from utils.db_requests import get_last_meters_by_user, get_all_meters_by_user, get_meter_by_id, get_all_meters
-from utils.db_requests import get_all_checked_meters, get_all_unchecked_meters
+from utils.db_requests import get_all_checked_meters, get_all_unchecked_meters, get_user_by_id
 from utils.save_meters import save_meter_readings
 
 from datetime import datetime
@@ -112,7 +112,7 @@ async def send_meter_data(message: types.Message, state: FSMContext):
 
 async def send_meter_data_func(state: FSMContext, bot, user_id):
     all_meters = get_all_meters_by_user(user_id)
-
+    user = get_user_by_id(user_id)
     if all_meters:
         current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
@@ -121,13 +121,17 @@ async def send_meter_data_func(state: FSMContext, bot, user_id):
 
         if len(all_meters) > 5:
             buttons.append([
-                types.InlineKeyboardButton(text="Предыдущая", callback_data="prev_meter_page"),
-                types.InlineKeyboardButton(text="Следующая", callback_data="next_meter_page")
+                InlineKeyboardButton(text="Предыдущая", callback_data="prev_user_meter_page"),
+                InlineKeyboardButton(text="Следующая", callback_data="next_user_meter_page"),
             ])
+            buttons.append([InlineKeyboardButton(text="Вернуться к жителю", callback_data=f"return_to_user_{user_id}")])
+        else:
+            buttons.append([InlineKeyboardButton(text="Вернуться к жителю", callback_data=f"return_to_user_{user_id}")])
 
-        news_markup = types.InlineKeyboardMarkup(inline_keyboard=buttons)
+        meters_markup = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-        await bot.send_message(user_id, Lang.strings["ru"]["ticket_select_reply"], reply_markup=news_markup, parse_mode=ParseMode.MARKDOWN)
+        await state.set_data({'to_user_id':user_id})
+        await bot.send_message(user_id, f"Показания по счетчикам @{user.username}", reply_markup=meters_markup, parse_mode=ParseMode.MARKDOWN)
     else:
         await bot.send_message(user_id, Lang.strings["ru"]["ticket_select_error"])
 

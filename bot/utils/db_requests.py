@@ -329,6 +329,16 @@ def ban_user_by_id(tg_id: int) -> Boolean:
     finally:
         User.close_session()
 
+def unban_user_by_id(tg_id: int) -> Boolean:
+    try:
+        User.set_session(Session())
+        User.unban(tg_id)
+        return True
+    except Exception:
+        return False
+    finally:
+        User.close_session()
+
 def close_ticket_by_id(ticket_id: int) -> Boolean:
     try:
         Ticket.set_session(Session())

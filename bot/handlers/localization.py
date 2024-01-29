@@ -18,6 +18,7 @@ class Lang:
             "return_to_employer_menu": "Вы вернулись в меню Сотрудника.",
             "return_to_users_menu": "Вы вернулись в меню жителей.",
             "return_to_news_menu": "Вы вернулись в меню новостей.",
+            "return_to_poll_menu": "Вы вернулись в меню опросов.",
             "problem_message": "Тестовое письмо проблемы, которое будет отправлено сотрудникам УК\n\n\nПроблема: {problem_type}\nОписание: {problem_description}",
 
             "need_registration_error": "Для использования функций программы необходимо зарегистрироваться и дождаться верификации: /start",
@@ -29,7 +30,8 @@ class Lang:
             "create_news_success": "Новость успешно создана !",
             "employee_access_error": "Извините, у вас нет разрешения на доступ к этой функции.",
 
-            "user_to_ban_error": "Ошибка, пользователя для бана не найден.",
+            "user_to_ban_error": "Ошибка, пользователь для бана не найден.",
+            "user_to_unban_error": "Ошибка, пользователь для разбана не найден.",
             "close_ticket_error": "Ошибка, заявка для закрытия не найдена.",
             "cancel_ticket_error": "Ошибка, заявка для отмены не найдена.",
             "news_delete_error":"Ошибка, новость для удаления не найдена.",
@@ -38,7 +40,7 @@ class Lang:
             "new_users_found_by_complex":"В данном ЖК нету жителей!",
             "user_profile_error":"Профиль пользователя не найден!",
             "meter_no_meters":"Показаний на проверку нет!",
-            
+            "no_user_meters_to_check":"У данного жителя нет показаний на проверку!",
         },
         "en": {
             "start_message": "Hello! This is a bot that allows..."

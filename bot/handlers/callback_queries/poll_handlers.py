@@ -1,5 +1,5 @@
 from utils.db_requests import get_poll_by_id
-from utils.send_poll_to_users import send_poll_to_user
+from handlers.polls import send_poll_to_all_users, send_poll_to_user
 
 from handlers.localization import Lang
 from db.db_config import logger

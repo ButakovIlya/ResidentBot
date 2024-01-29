@@ -29,12 +29,12 @@ from dict.issues_status import *
 from dict.problems_dict import problem_texts
 
 from handlers.contact import contact_uk_handler, extract_problem_description, problem_about_handler
-from handlers.issues import show_issues_handler
+from handlers.tickets import *
 from handlers.localization import Lang, get_localized_message
 from handlers.meter_readings import meter_router, send_meter_data_func, send_meter_data_to_employer_func
 from handlers.news import *
 from handlers.users import *
-from handlers.check_tikects import *
+from handlers.polls import *
 from handlers.registration import registration_router
 from handlers.profile import *
 
@@ -50,7 +50,6 @@ from utils.date_time import get_current_date_and_time
 from utils.db_requests import *
 from utils.media_processing import media_processing
 from utils.folders_checking import create_directories
-from utils.send_poll_to_users import *
 
 
 from handlers.callback_queries.news_handlers import *
@@ -143,6 +142,11 @@ async def return_to_main_menu(message: types.Message, state: FSMContext):
 @employer_router.message(lambda message: message.text == "Вернуться в меню новостей")
 async def return_to_main_menu(message: types.Message, state: FSMContext):
     await message.answer(Lang.strings["ru"]["return_to_news_menu"], reply_markup=news_markup)
+
+
+@employer_router.message(lambda message: message.text == "Вернуться в меню опросов")
+async def return_to_main_menu(message: types.Message, state: FSMContext):
+    await message.answer(Lang.strings["ru"]["return_to_poll_menu"], reply_markup=polls_markup)
 
 
 @main_router.message(lambda message: message.text == "Связаться с УК")
@@ -284,7 +288,7 @@ async def process_message(message: types.Message, state: FSMContext,
     create_new_news(news_data)
 
     message_text = f'Появилась новость: {topic}\n{caption}'
-    await all_confirmed_users_messenger(files_id, message_text, bot)
+    await all_confirmed_users_messenger(files_id, message_text, bot, logger)
 
     await state.clear()
     await message.answer("Новость успешно отправлена всем жителям!")
@@ -386,7 +390,7 @@ async def check_tikects(message: types.Message, state: FSMContext):
 
 @main_router.callback_query(lambda c: c.data.startswith("ticket_"))
 async def show_unchecked_tikect(callback_query: types.CallbackQuery, state: FSMContext):
-   await show_unchecked_tikect_func(callback_query, state, bot)
+   await show_unchecked_ticket_func(callback_query, state, bot)
 
 
 @employer_router.callback_query(lambda c: c.data in ["prev_ticket_page", "next_ticket_page"])
@@ -409,8 +413,7 @@ async def delete_ticket(callback_query: types.CallbackQuery, state: FSMContext):
 @employer_router.message(lambda message: message.text == "Создать опрос")
 async def set_poll(message: types.Message, state:FSMContext):
     await state.set_state(PollState.WaitingForPoll)
-    await bot.send_message(message.from_user.id, "Создайте и отправьте ваш опрос. Используйте кнопку прикрепить(в нижнем левом углу) -> Опрос",reply_markup=return_to_polls_menu)
-
+    await start_poll_handler(bot, message, logger)
 
 @employer_router.callback_query(lambda c: c.data.startswith("poll_"))
 async def show_poll_details(callback_query: types.CallbackQuery):
@@ -419,82 +422,18 @@ async def show_poll_details(callback_query: types.CallbackQuery):
 
 @employer_router.message(PollState.WaitingForPoll)
 async def create_poll(message: types.Message, state:FSMContext):
-    if message.poll:
-        all_options = message.poll.options
-        options = []
-        for option in all_options:
-            options.append(option.text)
-        question = message.poll.question
-
-        poll = await bot.send_poll(
-            chat_id=message.from_user.id,
-            question=question,  
-            options=options,  
-        )
-        await bot.send_message(
-            chat_id=message.from_user.id,
-            text="Пожалуйста, не удаляйте сообщение с опросом, иначе он перестанет быть доступным для остальных пользователей!"
-        )
-
-        # print(poll.__dict__)
-        if poll:
-            await send_poll_to_all_users(bot, poll, logger)
-
-            poll_data = {
-                'user_id': message.from_user.id,
-                'poll_tg_id':poll.poll.id,
-                'message_id': poll.message_id,
-                'tittle': poll.poll.question,
-                'is_closed': 0,
-            }
-            
-            create_poll(poll_data)
-
-        await state.clear()
-    else:
-        if message.text == 'Вернуться в меню опросов':
-            await bot.send_message(message.chat.id, "Вы перенаправлены в управление опросами.", reply_markup=polls_markup)
-            state.clear()
-            return
-
-        await bot.send_message(
-            chat_id=message.from_user.id,
-            text="Ошибка, Вы прикрепили не опрос!",
-            reply_markup=emploee_menu_markup
-        )
-        return
+    await create_new_poll_handler(message, state, bot, logger)
+    
 
 @employer_router.message(lambda message: message.text == "Активные опросы")
-async def look_all_active_polls(message: types.Message):
-    all_polls = get_all_active_polls(message.from_user.id)
-    if list(all_polls):
-        keyboard_buttons = []
-
-        for poll in all_polls[:6]:
-            poll_button = types.InlineKeyboardButton(text=poll.tittle, callback_data=f"poll_{poll.poll_tg_id}")
-            keyboard_buttons.append([poll_button])
-        
-        keyboard_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        
-        await bot.send_message(message.from_user.id, "Выберите нужный вам опрос.\n\nЧтобы закрыть опрос, откройте информацию о нем и нажмите кнопку 'Закрыть опрос'", reply_markup=keyboard_markup)
-    else:
-        await bot.send_message(message.from_user.id, "К сожалению, активных опросов нет")
+async def send_active_polls(message: types.Message):
+    await send_all_active_polls(bot, message)
     
-@employer_router.message(lambda message: message.text == "Завершенные опросы")
-async def look_all_inactive_polls(message: types.Message):
-    all_polls = get_all_inactive_polls(message.from_user.id)
-    if list(all_polls):
-        keyboard_buttons = []
 
-        for poll in all_polls[:6]:
-            poll_button = types.InlineKeyboardButton(text=poll.tittle, callback_data=f"poll_{poll.poll_tg_id}")
-            keyboard_buttons.append([poll_button])
-        
-        keyboard_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
-        
-        await bot.send_message(message.from_user.id, "Выберите нужный вам опрос.\n\nЧтобы закрыть опрос, откройте информацию о нем и нажмите кнопку 'Закрыть опрос'", reply_markup=keyboard_markup)
-    else:
-        await bot.send_message(message.from_user.id, "К сожалению, завершенных опросов нет")
+@employer_router.message(lambda message: message.text == "Завершенные опросы")
+async def send_inactive_polls(message: types.Message):
+    await send_all_inactive_polls(bot, message)
+    
 
 @last_router.message()
 async def unknown_message(message: types.Message):
@@ -506,6 +445,9 @@ async def unknown_message(message: types.Message):
 async def ban_user(callback_query: types.CallbackQuery, state: FSMContext):
     await ban_user_func(callback_query, bot)
 
+@employer_router.callback_query(lambda c: c.data.startswith("unban_user_"))
+async def ban_user(callback_query: types.CallbackQuery, state: FSMContext):
+    await unban_user_func(callback_query, bot)
 
 @employer_router.callback_query(lambda c: c.data.startswith("profile_user_"))
 async def user_profile_to_employer(callback_query: types.CallbackQuery, state: FSMContext):
@@ -578,6 +520,20 @@ async def show_meter_details(callback_query: types.CallbackQuery):
     await show_meter_by_id_func(callback_query, bot, logger)
 
 
+@meter_router.callback_query(lambda c: c.data.startswith("check_user_meters_"))
+async def check_user_meters(callback_query: types.CallbackQuery, state: FSMContext):
+    await check_user_meters_func(callback_query, state, bot)
+
+@meter_router.callback_query(lambda c: c.data in ['prev_user_meter_page', 'next_user_meter_page'])
+async def change_meter_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_meter_check_page_func(callback_query, state, bot)
+
+
+@meter_router.callback_query(lambda c: c.data.startswith("check_user_tickets_"))
+async def check_user_tickets(callback_query: types.CallbackQuery, state: FSMContext):
+    await check_user_tickets_func(callback_query, state, bot)
+
+
 @employer_router.callback_query(lambda c: c.data.startswith("aprove_meter_"))
 async def aprove_meter(callback_query: types.CallbackQuery, state: FSMContext):
     await aprove_meter_func(callback_query, bot)
@@ -585,6 +541,11 @@ async def aprove_meter(callback_query: types.CallbackQuery, state: FSMContext):
 @employer_router.callback_query(lambda c: c.data.startswith("decline_meter_"))
 async def decline_meter(callback_query: types.CallbackQuery, state: FSMContext):
     await decline_meter_func(callback_query, bot)
+
+@employer_router.callback_query(lambda c: c.data.startswith("return_to_user_"))
+async def return_to_user(callback_query: types.CallbackQuery, state: FSMContext):
+    await return_to_user_func(callback_query, state, bot)
+
 
 
 async def main():

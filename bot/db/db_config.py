@@ -213,7 +213,6 @@ class User(Base):
 
     @classmethod
     def ban(cls, telegram_id):
-        logger.info("Запрос на бан пользователя по id")
         try:
             session = cls.get_session()
             user = session.query(cls).filter_by(telegram_id=telegram_id).one_or_none()
@@ -229,7 +228,25 @@ class User(Base):
             return False
         finally:
             session.close()  
-        
+    
+    @classmethod
+    def unban(cls, telegram_id):
+        try:
+            session = cls.get_session()
+            user = session.query(cls).filter_by(telegram_id=telegram_id).one_or_none()
+
+            if user:
+                user.is_banned = 0
+                session.commit()  
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error("Ошибка при бане пользователя: " + str(e))
+            return False
+        finally:
+            session.close()  
+
     @classmethod
     def exists(cls, telegram_id):
         logger.info("Запрос на проверку существования пользователя по id")
