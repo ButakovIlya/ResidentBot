@@ -3,10 +3,14 @@ from utils.db_requests import get_meter_by_id, get_all_meters_by_user, aprove_me
 from handlers.meter_readings import send_meter_data_func, get_meter_data, get_meter_data_for_employer
 from handlers.localization import Lang
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.enums import ParseMode
 from buttons.emploee_menu import emploee_menu_markup
 from buttons.meters_menu import meters_markup
+from buttons.users_menu import users_markup
 
 from handlers.utils.users import user_profile_to_employer
+
+from utils.formatters import format_datetime
 
 async def change_meter_page_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
@@ -65,6 +69,7 @@ async def aprove_meter_func(callback_query, bot):
     meter_id = int(str(callback_query.data).split('_')[2])
     from_user_id = callback_query.from_user.id
     meter = get_meter_by_id(meter_id)
+    to_user_id = meter.user_id
 
     if meter:
         meter_buttons = []
@@ -72,8 +77,12 @@ async def aprove_meter_func(callback_query, bot):
         return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"check_user_meters_{meter.user_id}")
         meter_buttons.append([return_to_user_button])
         meter_buttons.append([return_to_meter_button])
-        if aprove_meter_by_id(meter_id):
-            new_text = '\n✅ Показания успешно подтверждены' 
+        if aprove_meter_by_id(meter_id, to_user_id):
+            if meter.is_checked:
+                new_text = '\n✅ Показания успешно подтверждены'
+            else:
+                new_text = '\n\n\n✅ Показания успешно подтверждены'
+
             old_text  = callback_query.message.text.split('\n')
             old_text = old_text[:-1]
             result_text = '\n'.join(old_text) + new_text
@@ -81,9 +90,10 @@ async def aprove_meter_func(callback_query, bot):
             meters_markup = InlineKeyboardMarkup(inline_keyboard=meter_buttons)
             await callback_query.bot.edit_message_text(result_text, callback_query.message.chat.id,
                                                        callback_query.message.message_id, reply_markup=meters_markup)
-            # await bot.send_message(from_user_id, f"Показания от {meter_data.datetime} подтвержены.", reply_markup=meters_markup)
+            
+            await bot.send_message(to_user_id, f"👍 Ваши показания от {format_datetime(meter.datetime)} подтвержены.", reply_markup=users_markup)
         else:
-            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=meters_markup)
+            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=emploee_menu_markup)
     else:
         await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
 
@@ -94,6 +104,7 @@ async def decline_meter_func(callback_query, bot):
     meter_id = int(str(callback_query.data).split('_')[2])
     from_user_id = callback_query.from_user.id
     meter = get_meter_by_id(meter_id)
+    to_user_id = meter.user_id
 
     if meter:
         meter_buttons = []
@@ -101,8 +112,12 @@ async def decline_meter_func(callback_query, bot):
         return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"check_user_meters_{meter.user_id}")
         meter_buttons.append([return_to_user_button])
         meter_buttons.append([return_to_meter_button])
-        if aprove_meter_by_id(meter_id):
-            new_text = '\n❌ Показания отклонены!'
+        if decline_meter_by_id(meter_id):
+            if meter.is_checked:
+                new_text = '\n❌ Показания отклонены!'
+            else:
+                new_text = '\n\n\n❌ Показания отклонены!'
+
             old_text  = callback_query.message.text.split('\n')
             old_text = old_text[:-1]
             result_text = '\n'.join(old_text) + new_text
@@ -110,9 +125,14 @@ async def decline_meter_func(callback_query, bot):
             meters_markup = InlineKeyboardMarkup(inline_keyboard=meter_buttons)
             await callback_query.bot.edit_message_text(result_text, callback_query.message.chat.id,
                                                        callback_query.message.message_id, reply_markup=meters_markup)
-            # await bot.send_message(from_user_id, f"Показания от {meter_data.datetime} подтвержены.", reply_markup=meters_markup)
+            
+            check_meter_btn = []
+            check_meter_btn.append([InlineKeyboardButton(text="Проверить показания", callback_data=f"meter_{meter.meter_readings_id}")]) 
+            check_meter_markup = InlineKeyboardMarkup(inline_keyboard=check_meter_btn)
+            await bot.send_message(to_user_id, f"👎 Ваши показания от {format_datetime(meter.datetime)} отклонены! Подайте показания корректно или свяжитесь с УК/ТСЖ",
+                                    reply_markup=check_meter_markup, parse_mode=ParseMode.MARKDOWN)
         else:
-            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=meters_markup)
+            await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=emploee_menu_markup)
     else:
         await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
 
@@ -130,8 +150,14 @@ async def check_user_meters_func(callback_query, state, bot):
         current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
-        buttons = [[InlineKeyboardButton(text="Показания от " + str(meter_item.datetime), callback_data=f"meter_{meter_item.meter_readings_id}")] for meter_item in meters_on_page]
-        
+        buttons = []
+        for meter_item in meters_on_page:
+            is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
+            button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
+            callback_data = f"meter_{meter_item.meter_readings_id}"
+            
+            button = InlineKeyboardButton(text=button_text, callback_data=callback_data)
+            buttons.append([button])        
 
         if len(all_meters) > 5:
             buttons.append([

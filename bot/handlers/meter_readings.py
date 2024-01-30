@@ -10,8 +10,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
 from handlers.localization import Lang
 
-from utils.db_requests import get_last_meters_by_user, get_all_meters_by_user, get_meter_by_id, get_all_meters
-from utils.db_requests import get_all_checked_meters, get_all_unchecked_meters, get_user_by_id
+from utils.db_requests import has_unchecked_by_user_id, get_all_meters_by_user, get_meter_by_id, get_all_meters
+from utils.db_requests import get_all_checked_meters, get_all_unchecked_meters, get_user_by_id, get_last_meters_by_user
 from utils.save_meters import save_meter_readings
 
 from datetime import datetime
@@ -96,15 +96,27 @@ async def cold_water_sent(message: types.Message, state: FSMContext):
 
 @meter_router.message(lambda message: message.text == "Передача показаний")
 async def send_meter_data(message: types.Message, state: FSMContext):
-    await state.set_state(MeterDataState.started)
     user_id = message.from_user.id
-    last_meters = get_last_meters_by_user(user_id)
+    has_unchecked = has_unchecked_by_user_id(user_id)
 
-    await state.update_data(hot_water=last_meters.hot_water)
-    await state.update_data(cold_water=last_meters.cold_water)
+    if has_unchecked:
+        await message.answer(f"У вас уже есть еще не проверенные показания, ожидайте одобрения администрации!")
+    else:
+        await state.set_state(MeterDataState.started)
+        
+        last_meter = get_last_meters_by_user(user_id)
+        if last_meter:
+            await state.update_data(hot_water=last_meter.hot_water)
+            await state.update_data(cold_water=last_meter.cold_water)
 
-    await message.answer(f"Ваши последние показания по холодной воде: {last_meters.cold_water}м³")
-    await message.answer("Холодная вода. Введите текущие показания прибота учёта в кубических метрах:", reply_markup=return_to_main_menu_markup)
+            await message.answer(f"Ваши последние показания по холодной воде: {last_meter.cold_water}м³")
+            await message.answer("Холодная вода. Введите текущие показания прибота учёта в кубических метрах:", reply_markup=return_to_main_menu_markup)
+        else:
+            await state.update_data(hot_water=0)
+            await state.update_data(cold_water=0)
+
+            await message.answer(f"Ваши последние показания по холодной воде: {0}м³")
+            await message.answer("Холодная вода. Введите текущие показания прибота учёта в кубических метрах:", reply_markup=return_to_main_menu_markup)
 
 
 
@@ -117,7 +129,15 @@ async def send_meter_data_func(state: FSMContext, bot, user_id):
         current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
-        buttons = [[types.InlineKeyboardButton(text="Показания от " + str(meter_item.datetime), callback_data=f"meter_{meter_item.meter_readings_id}")] for meter_item in meters_on_page]
+        buttons = []
+        for meter_item in meters_on_page:
+            is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
+            button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
+            callback_data = f"meter_{meter_item.meter_readings_id}"
+            
+            button = types.InlineKeyboardButton(text=button_text, callback_data=callback_data)
+            buttons.append([button])
+
 
         if len(all_meters) > 5:
             buttons.append([
@@ -149,7 +169,14 @@ async def send_meter_data_to_employer_func(state: FSMContext, bot, user_id, is_c
         current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
-        buttons = [[types.InlineKeyboardButton(text="Показания от " + str(meter_item.datetime), callback_data=f"meter_{meter_item.meter_readings_id}")] for meter_item in meters_on_page]
+        buttons = []
+        for meter_item in meters_on_page:
+            is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
+            button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
+            callback_data = f"meter_{meter_item.meter_readings_id}"
+            
+            button = types.InlineKeyboardButton(text=button_text, callback_data=callback_data)
+            buttons.append([button])
 
         if len(all_meters) > 5:
             buttons.append([
@@ -202,11 +229,10 @@ async def get_meter_data_for_employer(meter_id, logger):
 
                 f"Инофрмация о показаниях:\n"
                 f"Номер: {meter.meter_readings_id}\n"
-                f"Холодная вода: {meter.cold_water}\n"
-                f"Горячая вода: {meter.hot_water}\n"
+                f"Холодная вода: {meter.cold_water}м³ (Было: {meter.prev_cold_water if meter.prev_cold_water is not None else '0'}м³)\n"
+                f"Горячая вода: {meter.hot_water}м³  (Было: {meter.prev_hot_water if meter.prev_hot_water is not None else '0'}м³)\n"
                 f"Дата: {(str(meter.datetime).split()[0])}\n"
                 f"Время: {str(meter.datetime).split()[1]}\n"
-
             )
             if meter.is_checked:
                 meter_data += f"\n\n{'✅ Показания подтверждены.' if meter.is_approved else '❌ Показания отклонены!'}"

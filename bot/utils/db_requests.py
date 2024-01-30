@@ -2,8 +2,8 @@ import functools
 from db.db_config import *
 
 # переделай на локальную
-engine = create_engine('mysql+mysqlconnector://root:some_pass123@89.111.172.79/resident_bot_db')
-# engine = create_engine('mysql://root:root@localhost/resident_db')
+# engine = create_engine('mysql+mysqlconnector://root:some_pass123@89.111.172.79/resident_bot_db')
+engine = create_engine('mysql://root:root@localhost/resident_bot_db')
 
 # Создайте сессию для взаимодействия с базой данных
 Session = sessionmaker(bind=engine)
@@ -413,8 +413,7 @@ def get_all_meters() -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
         
 
 def get_all_unchecked_meters() -> MeterReading:
@@ -425,8 +424,7 @@ def get_all_unchecked_meters() -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
     
 def get_all_checked_meters() -> MeterReading:
     try:
@@ -436,8 +434,7 @@ def get_all_checked_meters() -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
     
 def get_meter_by_id(meter_id) -> MeterReading:
     try:
@@ -447,8 +444,7 @@ def get_meter_by_id(meter_id) -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
                 
 def get_all_meters_by_user(user_id) -> MeterReading:
     try:
@@ -458,33 +454,47 @@ def get_all_meters_by_user(user_id) -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
 
 
 def get_last_meters_by_user(user_id) -> MeterReading:
     try:
         MeterReading.set_session(Session())
         all_meters = MeterReading.get_last_by_user_id(user_id)
-        return all_meters
+
+        if all_meters:
+            return all_meters
+        else: 
+            return None
+          
+        
     except Exception:
         return False
     finally:
         pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
 
 
-
-def aprove_meter_by_id(meter_id) -> Boolean:
+def has_unchecked_by_user_id(user_id) -> MeterReading:
     try:
         MeterReading.set_session(Session())
-        is_aproved = MeterReading.aprove_by_id(meter_id)
+        has_unchecked = MeterReading.has_unchecked_by_user_id(user_id)
+        return has_unchecked
+    except Exception:
+        return None
+    finally:
+        MeterReading.close_session()
+
+
+def aprove_meter_by_id(meter_id, user_id) -> Boolean:
+    try:
+        MeterReading.set_session(Session())
+        is_aproved = MeterReading.aprove_by_id(meter_id, user_id)
         return is_aproved
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
     
 def decline_meter_by_id(meter_id) -> Boolean:
     try:
@@ -494,5 +504,4 @@ def decline_meter_by_id(meter_id) -> Boolean:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()

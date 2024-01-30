@@ -1504,8 +1504,11 @@ class MeterReading(Base):
     datetime = Column(TIMESTAMP)
     is_approved = Column(Boolean)
     is_checked = Column(Boolean, default=0)
+    is_initial = Column(Boolean)
+    previous_id = Column(Integer, default=None)
 
     user = relationship("User")
+
 
     _session = None  
     def __init__(self, **user_data):
@@ -1532,9 +1535,19 @@ class MeterReading(Base):
     @classmethod
     def get_all(cls):
         try:
-            session = cls.get_session()
-            all_meters = session.query(cls).all()
-            return all_meters
+            sql = text(
+                f"""
+                SELECT 
+                    *
+                FROM
+                    resident_bot_db.meter_readings
+                ORDER BY datetime DESC;
+                """
+            )
+            object = cls.get_session().execute(sql).fetchall()
+            if not object:
+                return None
+            return object
         except Exception as e:
             logger.error(f"Не удалось получить все показания: {str(e)}")
             return None
@@ -1552,9 +1565,9 @@ class MeterReading(Base):
                         resident_bot_db.user ON meter_readings.user_id = user.telegram_id
                     WHERE
                         is_checked = {is_checked}
+                    ORDER BY datetime DESC;
                 """
             )
-            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE is_checked = {is_checked}")
             object = cls.get_session().execute(sql, {'is_checked': is_checked}).fetchall()
             if not object:
                 return None
@@ -1567,7 +1580,7 @@ class MeterReading(Base):
     @classmethod
     def get_all_by_checked_and_user_id(cls, is_checked, user_id):
         try:
-            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE is_checked = {is_checked} AND user_id = {user_id}")
+            sql = text(f"SELECT * FROM resident_bot_db.meter_readings WHERE is_checked = {is_checked} AND user_id = {user_id} ORDER BY datetime DESC;")
             object = cls.get_session().execute(sql, {'is_checked':is_checked, 'user_id':user_id}).fetchall()
             if not object:
                 return None
@@ -1582,13 +1595,17 @@ class MeterReading(Base):
         try:
             sql = text(f"""
                             SELECT 
-                                *
+                                m1.*,
+                                m2.cold_water as prev_cold_water, m2.hot_water as prev_hot_water,
+                                user.*
                             FROM
-                                resident_bot_db.meter_readings
-                                    JOIN
-                                resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                                resident_bot_db.meter_readings AS m1
+                                    LEFT JOIN
+                                resident_bot_db.user ON m1.user_id = user.telegram_id
+                                    LEFT JOIN
+                                resident_bot_db.meter_readings AS m2 ON m1.previous_id = m2.meter_readings_id
                             WHERE
-                                meter_readings_id = {meter_readings_id}
+                                m1.meter_readings_id = {meter_readings_id}
                         """)
             object = cls.get_session().execute(sql, {"meter_readings_id": meter_readings_id}).fetchone()
             if not object:
@@ -1610,6 +1627,7 @@ class MeterReading(Base):
                         resident_bot_db.user ON meter_readings.user_id = user.telegram_id
                     WHERE
                         user_id = {user_id}
+                    ORDER BY datetime DESC;
                 """
             )
             session = cls.get_session()
@@ -1620,6 +1638,33 @@ class MeterReading(Base):
             return None
         
     
+    @classmethod
+    def has_unchecked_by_user_id(cls, user_id):
+        try:
+            sql = text(
+                f"""
+                    SELECT 
+                        meter_readings.*
+                    FROM
+                        resident_bot_db.meter_readings
+                            JOIN
+                        resident_bot_db.user ON meter_readings.user_id = user.telegram_id
+                    WHERE
+                        user_id = {user_id} and is_checked = 0
+                    ORDER BY meter_readings.datetime DESC
+                    LIMIT 1;
+                """
+            )
+            session = cls.get_session()
+            result = session.execute(sql, {"user_id": user_id}).fetchone()
+            if result:
+                return result
+            return None
+        except Exception as e:
+            logger.error(f"Не удалось вывести непроверенные показания по user_id = {user_id}: {str(e)}")
+            return None
+        
+
     @classmethod
     def get_last_by_user_id(cls, user_id):
         try:
@@ -1632,7 +1677,7 @@ class MeterReading(Base):
                             JOIN
                         resident_bot_db.user ON meter_readings.user_id = user.telegram_id
                     WHERE
-                        user_id = {user_id}
+                        user_id = {user_id} AND is_approved = 1
                     ORDER BY meter_readings.datetime DESC
                     LIMIT 1;
                 """
@@ -1645,7 +1690,8 @@ class MeterReading(Base):
         except Exception as e:
             logger.error(f"Не удалось получить последние показания по user_id = {user_id}: {str(e)}")
             return None
-        
+
+
     @classmethod
     def delete_by_id(cls, meter_id):
         try:
@@ -1660,12 +1706,16 @@ class MeterReading(Base):
             return False
     
     @classmethod
-    def aprove_by_id(cls, meter_id):
+    def aprove_by_id(cls, meter_id, user_id):
         try:
             meter = cls.get_session().query(cls).filter_by(meter_readings_id=meter_id).one()
+            last_meter = cls.get_last_by_user_id(user_id)
             if meter:
                 meter.is_approved = True
                 meter.is_checked = True
+                if last_meter:
+                    meter.previous_id = last_meter.meter_readings_id
+                
                 cls.get_session().commit()
                 return True
             else:
