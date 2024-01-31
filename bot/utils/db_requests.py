@@ -402,8 +402,8 @@ def create_meter_readings(meter_data) -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
-        # MeterReading.close_session()
+        MeterReading.close_session()
+
 
 def get_all_meters() -> MeterReading:
     try:
@@ -426,6 +426,7 @@ def get_all_unchecked_meters() -> MeterReading:
     finally:
         MeterReading.close_session()
     
+
 def get_all_checked_meters() -> MeterReading:
     try:
         MeterReading.set_session(Session())
@@ -436,6 +437,7 @@ def get_all_checked_meters() -> MeterReading:
     finally:
         MeterReading.close_session()
     
+
 def get_meter_by_id(meter_id) -> MeterReading:
     try:
         MeterReading.set_session(Session())
@@ -445,6 +447,7 @@ def get_meter_by_id(meter_id) -> MeterReading:
         return False
     finally:
         MeterReading.close_session()
+   
                 
 def get_all_meters_by_user(user_id) -> MeterReading:
     try:
@@ -471,7 +474,6 @@ def get_last_meters_by_user(user_id) -> MeterReading:
     except Exception:
         return False
     finally:
-        pass
         MeterReading.close_session()
 
 

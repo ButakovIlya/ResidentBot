@@ -31,7 +31,7 @@ from dict.problems_dict import problem_texts
 from handlers.contact import contact_uk_handler, extract_problem_description, problem_about_handler
 from handlers.tickets import *
 from handlers.localization import Lang, get_localized_message
-from handlers.meter_readings import meter_router, send_meter_data_func, send_meter_data_to_employer_func
+from handlers.meter_readings import meter_router, send_meters_data_func, send_all_meters_to_employer_func
 from handlers.news import *
 from handlers.users import *
 from handlers.polls import *
@@ -495,24 +495,24 @@ async def show_meter_readings(message: types.Message, state: FSMContext):
 
 @meter_router.message(lambda message: message.text == "Мои показания")
 async def send_meter_data(message: types.Message, state: FSMContext):
-    await send_meter_data_func(state, bot, message.from_user.id)
+    await send_meters_data_func(state, bot, message.from_user.id)
 
 @employer_router.message(lambda message: message.text == "Все показания")
 async def send_meter_data(message: types.Message, state: FSMContext):
-    await send_meter_data_to_employer_func(state, bot, message.from_user.id)
+    await send_all_meters_to_employer_func(state, bot, message.from_user.id)
 
 @employer_router.message(lambda message: message.text == "Непроверенные показания")
 async def send_meter_data(message: types.Message, state: FSMContext):
-    await send_meter_data_to_employer_func(state, bot, message.from_user.id, False)
+    await send_all_meters_to_employer_func(state, bot, message.from_user.id, False)
 
 @employer_router.message(lambda message: message.text == "Проверенные показания")
 async def send_meter_data(message: types.Message, state: FSMContext):
-    await send_meter_data_to_employer_func(state, bot, message.from_user.id, True)
+    await send_all_meters_to_employer_func(state, bot, message.from_user.id, True)
 
 
 @meter_router.callback_query(lambda c: c.data in ['prev_meter_page', 'next_meter_page'])
-async def change_meter_page(callback_query: types.CallbackQuery, state: FSMContext):
-    await change_meter_page_func(callback_query, state, bot)
+async def change_all_meters_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_all_meters_page_func(callback_query, state, bot)
 
 
 @meter_router.callback_query(lambda c: c.data.startswith("meter_"))
@@ -525,8 +525,8 @@ async def check_user_meters(callback_query: types.CallbackQuery, state: FSMConte
     await check_user_meters_func(callback_query, state, bot)
 
 @meter_router.callback_query(lambda c: c.data in ['prev_user_meter_page', 'next_user_meter_page'])
-async def change_meter_page(callback_query: types.CallbackQuery, state: FSMContext):
-    await change_meter_check_page_func(callback_query, state, bot)
+async def change_user_meter_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_user_meter_page_func(callback_query, state, bot)
 
 
 @meter_router.callback_query(lambda c: c.data.startswith("check_user_tickets_"))

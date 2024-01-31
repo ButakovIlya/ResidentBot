@@ -1,6 +1,6 @@
 from aiogram.fsm.context import FSMContext
 from utils.db_requests import get_meter_by_id, get_all_meters_by_user, aprove_meter_by_id, decline_meter_by_id, is_employer, get_user_by_id
-from handlers.meter_readings import send_meter_data_func, get_meter_data, get_meter_data_for_employer
+from handlers.meter_readings import send_user_meters_data_func, get_meter_data, get_meter_data_for_employer, send_meters_data_func
 from handlers.localization import Lang
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.enums import ParseMode
@@ -12,10 +12,12 @@ from handlers.utils.users import user_profile_to_employer
 
 from utils.formatters import format_datetime
 
-async def change_meter_page_func(callback_query, state, bot):
+async def change_all_meters_page_func(callback_query, state:FSMContext, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
-    current_page = await state.get_state() or 0
+    state_data = await state.get_data()
+
+    current_page = state_data.get('meters_page', 0)
     all_meters = get_all_meters_by_user(user_id)
     pages = [all_meters[i:i + 5] for i in range(0, len(all_meters), 5)]
 
@@ -24,9 +26,12 @@ async def change_meter_page_func(callback_query, state, bot):
     elif callback_query.data == "next_meter_page" and current_page + 1 < len(pages):
         current_page += 1
 
-    await state.set_state(current_page)
 
-    await send_meter_data_func(state, bot, user_id)
+    await state.set_data({
+        'meters_page':current_page
+    })
+
+    await send_meters_data_func(state, bot, user_id)
 
     await bot.delete_message(user_id, message_id)
 
@@ -43,8 +48,10 @@ async def show_meter_by_id_func(callback_query, bot, logger):
             decline_meter_button = InlineKeyboardButton(text=f"Отклонить ❌", callback_data=f"decline_meter_{meter.meter_readings_id}")
             return_to_user_button = InlineKeyboardButton(text="Вернуться к жителю", callback_data=f"return_to_user_{meter.user_id}")
             return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"check_user_meters_{meter.user_id}")
-            meter_buttons.append([decline_meter_button])
-            meter_buttons.append([aprove_meter_button])
+            
+            if not meter.has_dependence: meter_buttons.append([decline_meter_button])
+            if not meter.has_dependence: meter_buttons.append([aprove_meter_button]) 
+
             meter_buttons.append([return_to_user_button])
             meter_buttons.append([return_to_meter_button])
             keyboard_markup = InlineKeyboardMarkup(inline_keyboard=meter_buttons)
@@ -91,7 +98,7 @@ async def aprove_meter_func(callback_query, bot):
             await callback_query.bot.edit_message_text(result_text, callback_query.message.chat.id,
                                                        callback_query.message.message_id, reply_markup=meters_markup)
             
-            await bot.send_message(to_user_id, f"👍 Ваши показания от {format_datetime(meter.datetime)} подтвержены.", reply_markup=users_markup)
+            await bot.send_message(to_user_id, f"👍 Ваши показания от {format_datetime(meter.datetime)} были подтвержены.", reply_markup=users_markup)
         else:
             await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=emploee_menu_markup)
     else:
@@ -129,7 +136,7 @@ async def decline_meter_func(callback_query, bot):
             check_meter_btn = []
             check_meter_btn.append([InlineKeyboardButton(text="Проверить показания", callback_data=f"meter_{meter.meter_readings_id}")]) 
             check_meter_markup = InlineKeyboardMarkup(inline_keyboard=check_meter_btn)
-            await bot.send_message(to_user_id, f"👎 Ваши показания от {format_datetime(meter.datetime)} отклонены! Подайте показания корректно или свяжитесь с УК/ТСЖ",
+            await bot.send_message(to_user_id, f"👎 Ваши показания от {format_datetime(meter.datetime)} были отклонены! Подайте показания корректно или свяжитесь с УК/ТСЖ",
                                     reply_markup=check_meter_markup, parse_mode=ParseMode.MARKDOWN)
         else:
             await bot.send_message(from_user_id, f"Произошла ошибка при подтверждении показаний!", reply_markup=emploee_menu_markup)
@@ -147,13 +154,14 @@ async def check_user_meters_func(callback_query, state, bot):
     all_meters = get_all_meters_by_user(to_user_id)
 
     if all_meters:
-        current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
+        state_data = await state.get_data()
+        current_page = max(0, min(state_data.get('user_meters_page', 0), len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
         buttons = []
         for meter_item in meters_on_page:
             is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
-            button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
+            button_text = is_checked + ' ' + f"Показания от {format_datetime(meter_item.datetime)}"
             callback_data = f"meter_{meter_item.meter_readings_id}"
             
             button = InlineKeyboardButton(text=button_text, callback_data=callback_data)
@@ -181,11 +189,11 @@ async def check_user_meters_func(callback_query, state, bot):
     await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
-async def change_meter_check_page_func(callback_query, state:FSMContext, bot):
+async def change_user_meter_page_func(callback_query, state:FSMContext, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
-    current_page = await state.get_state() or 0
     state_data = await state.get_data()
+    current_page = state_data.get('user_meters_page', 0)
 
     if 'to_user_id' in state_data:
         to_user_id = state_data['to_user_id']
@@ -203,9 +211,14 @@ async def change_meter_check_page_func(callback_query, state:FSMContext, bot):
     elif callback_query.data == "next_user_meter_page" and current_page + 1 < len(pages):
         current_page += 1
 
-    await state.set_state(current_page)
+    await state.set_data({
+        'user_meters_page':current_page,
+    })
 
-    await send_meter_data_func(state, bot, to_user_id)
+    state_data = await state.get_data()
+    print(state_data)
+
+    await send_user_meters_data_func(state, bot, to_user_id)
 
     await bot.delete_message(user_id, message_id)
 

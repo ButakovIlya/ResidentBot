@@ -1597,13 +1597,16 @@ class MeterReading(Base):
                             SELECT 
                                 m1.*,
                                 m2.cold_water as prev_cold_water, m2.hot_water as prev_hot_water,
-                                user.*
+                                user.*,
+                                m3.meter_readings_id as has_dependence
                             FROM
                                 resident_bot_db.meter_readings AS m1
                                     LEFT JOIN
                                 resident_bot_db.user ON m1.user_id = user.telegram_id
                                     LEFT JOIN
                                 resident_bot_db.meter_readings AS m2 ON m1.previous_id = m2.meter_readings_id
+                                    LEFT JOIN
+                                resident_bot_db.meter_readings AS m3 ON m3.previous_id = m1.meter_readings_id
                             WHERE
                                 m1.meter_readings_id = {meter_readings_id}
                         """)

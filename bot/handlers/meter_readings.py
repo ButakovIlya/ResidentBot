@@ -120,13 +120,43 @@ async def send_meter_data(message: types.Message, state: FSMContext):
 
 
 
+async def send_meters_data_func(state: FSMContext, bot, user_id):
+    all_meters = get_all_meters()
+    if all_meters:
+        state_data = await state.get_data()
+        current_page = max(0, min(state_data.get('meters_page', 0), len(all_meters) // 5))
+        meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
+
+        buttons = []
+        for meter_item in meters_on_page:
+            is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
+            button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
+            callback_data = f"meter_{meter_item.meter_readings_id}"
+            
+            button = types.InlineKeyboardButton(text=button_text, callback_data=callback_data)
+            buttons.append([button])
 
 
-async def send_meter_data_func(state: FSMContext, bot, user_id):
+        if len(all_meters) > 5:
+            buttons.append([
+                InlineKeyboardButton(text="Предыдущая", callback_data="prev_meter_page"),
+                InlineKeyboardButton(text="Следующая", callback_data="next_meter_page"),
+            ])
+        
+        meters_markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+        await bot.send_message(user_id, f"Показания по счетчикам:", reply_markup=meters_markup, parse_mode=ParseMode.MARKDOWN)
+
+    else:
+        await bot.send_message(user_id, Lang.strings["ru"]["meter_no_meters"])
+
+
+
+async def send_user_meters_data_func(state: FSMContext, bot, user_id):
     all_meters = get_all_meters_by_user(user_id)
     user = get_user_by_id(user_id)
     if all_meters:
-        current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
+        state_data = await state.get_data()
+        current_page = max(0, min(state_data.get('user_meters_page', 0), len(all_meters) // 5))
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
         buttons = []
@@ -156,7 +186,7 @@ async def send_meter_data_func(state: FSMContext, bot, user_id):
         await bot.send_message(user_id, Lang.strings["ru"]["ticket_select_error"])
 
 
-async def send_meter_data_to_employer_func(state: FSMContext, bot, user_id, is_checked=None):
+async def send_all_meters_to_employer_func(state: FSMContext, bot, user_id, is_checked=None):
     if is_checked == True:
         all_meters = get_all_checked_meters()
     elif is_checked == False:
@@ -165,8 +195,12 @@ async def send_meter_data_to_employer_func(state: FSMContext, bot, user_id, is_c
         all_meters = get_all_meters()
 
 
+    await state.set_data({
+        'meters_page':0
+    })
+    
     if all_meters:
-        current_page = max(0, min(await state.get_state() or 0, len(all_meters) // 5))
+        current_page = 0
         meters_on_page = all_meters[current_page*5 : (current_page+1)*5]
 
         buttons = []
