@@ -1,14 +1,25 @@
 version: "3.3"
 
 services:
+  db:
+    image: mysql:latest
+    ports:
+      - '3306:3306'
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: some_pass123  
+      MYSQL_DATABASE: resident_bot_db
+      MYSQL_PASSWORD: some_pass123
+
   bot:
     build: .
     restart: always
     volumes:
       - static-data:/vol/static
       - media-data:/vol/media
-
-
+    depends_on:
+      - db
+ 
 volumes:
   static-data:
   media-data:

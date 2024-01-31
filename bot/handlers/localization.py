@@ -41,6 +41,7 @@ class Lang:
             "user_profile_error":"Профиль пользователя не найден!",
             "meter_no_meters":"Показаний на проверку нет!",
             "no_user_meters_to_check":"У данного жителя нет показаний на проверку!",
+            "no_user_tickets_to_check":"У данного жителя нет обращений!",
         },
         "en": {
             "start_message": "Hello! This is a bot that allows..."

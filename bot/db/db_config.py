@@ -102,7 +102,6 @@ class User(Base):
 
     @classmethod
     def get_user_by_id(cls, telegram_id):
-        logger.info(f"Запрос пользователя по id")
         session = cls.get_session()
         try:
             user = session.get(cls, telegram_id)
@@ -270,7 +269,6 @@ class User(Base):
             return None
 
     def update(self, updated_data):
-        logger.info(f"Запрос на обновление пользователя {updated_data}")
         session = self.__class__.get_session()
         try:
             user = session.get(User, self.telegram_id)
@@ -286,7 +284,6 @@ class User(Base):
             return None
         
     def delete(self):
-        logger.info(f"Запрос на удаление пользователя")
         session = self.get_session()
         try:
             user = session.get(User, self.telegram_id)
@@ -447,7 +444,6 @@ class Employer(Base):
     @classmethod
     def get_all_by_role(cls, role_name):
         try:
-            logger.info(f"Запрос на получение всех сотрудников с ролью '{role_name}'")
             query = text(f"""SELECT * FROM resident_bot_db.employer 
                          JOIN employer_role ON employer.role_id = employer_role.role_id 
                          WHERE employer_role.role = '{role_name}'""")
@@ -589,6 +585,7 @@ class Employer(Base):
         except Exception as e:
             logger.error(f"Не удалось обновить работодателя: {str(e)}")
             return False
+   
     @classmethod
     def close_session(self):
         if self._session:
@@ -744,6 +741,25 @@ class Ticket(Base):
             logger.error(f"Не удалось получить все билеты: {str(e)}")
 
     @classmethod
+    def get_all_by_user_id(cls, telegram_id:int):
+        try:
+            sql = text(f"""
+                          SELECT 
+                                ticket.*,
+                                ticket_type.type
+                            FROM
+                                resident_bot_db.ticket
+                                    JOIN
+                                resident_bot_db.ticket_type ON ticket.ticket_type_id = ticket_type.ticket_type_id
+                            WHERE
+                                user_id = {telegram_id}
+                         """)
+            all_tickets = cls.get_session().execute(sql).fetchall()
+            return all_tickets
+        except Exception as e:
+            logger.error(f"Не удалось получить все заявки: {str(e)}")
+
+    @classmethod
     def get_solved(cls):
         try:
             logger.info(f"Запрос на получение всех закрытых заявок")
@@ -798,17 +814,10 @@ class Ticket(Base):
     @classmethod
     def get_all_by_user_id_and_status(cls, telegram_id:int, is_solved:int):
         try:
-            logger.info(f"Запрос на получение всех заявок пользователя c id='{telegram_id}' со статусом '{is_solved}'")
-            query = text(f"""
+            sql = text(f"""
                           SELECT 
-                                ticket.ticket_id,
+                                ticket.*,
                                 ticket_type.type,
-                                ticket.user_id,
-                                ticket.is_solved,
-                                ticket.date,
-                                ticket.time,
-                                ticket.details,
-                                ticket.images
                             FROM
                                 resident_bot_db.ticket
                                     JOIN
@@ -816,7 +825,7 @@ class Ticket(Base):
                             WHERE
                                 user_id = {telegram_id} AND is_solved = {is_solved}
                          """)
-            all_tickets = cls.get_session().execute(query).fetchall()
+            all_tickets = cls.get_session().execute(sql).fetchall()
             return all_tickets
         except Exception as e:
             logger.error(f"Не удалось получить все заявки: {str(e)}")
@@ -882,7 +891,6 @@ class Ticket(Base):
 
     @classmethod
     def close_ticket(cls, ticket_id):
-        logger.info(f"Запрос на закрытие заявки с id = {ticket_id}")
         try:
             session = cls.get_session()
             ticket = session.query(cls).filter_by(ticket_id=ticket_id).one_or_none()
@@ -898,7 +906,6 @@ class Ticket(Base):
 
     @classmethod
     def delete_ticket(cls, ticket_id):
-        logger.info(f"Запрос на удаление заявки с id = {ticket_id}")
         try:
             session = cls.get_session()
             ticket = session.query(cls).filter_by(ticket_id=ticket_id).one_or_none()
@@ -923,7 +930,7 @@ class Ticket(Base):
             session.commit()
             return True
         except Exception as e:
-            logger.error(f"Не удалось создать билет: {str(e)}")
+            logger.error(f"Не удалось создать заявку: {str(e)}")
             return False
 
     def delete(self):
@@ -938,7 +945,7 @@ class Ticket(Base):
         except NoResultFound:
             return False
         except Exception as e:
-            logger.error(f"Не удалось удалить билет: {str(e)}")
+            logger.error(f"Не удалось удалить заявку: {str(e)}")
             return False
 
     def update(self, updated_data):
@@ -952,7 +959,7 @@ class Ticket(Base):
         except NoResultFound:
             return False
         except Exception as e:
-            logger.error(f"Не удалось обновить билет: {str(e)}")
+            logger.error(f"Не удалось обновить заявку: {str(e)}")
             return False
 
     def save(self):
@@ -967,7 +974,7 @@ class Ticket(Base):
             try:
                 session.commit()
             except Exception as e:
-                logger.error(f"Не удалось сохранить билет: {str(e)}")
+                logger.error(f"Не удалось сохранить заявку: {str(e)}")
 
     @classmethod
     def close_session(cls):

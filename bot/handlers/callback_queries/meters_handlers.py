@@ -216,7 +216,6 @@ async def change_user_meter_page_func(callback_query, state:FSMContext, bot):
     })
 
     state_data = await state.get_data()
-    print(state_data)
 
     await send_user_meters_data_func(state, bot, to_user_id)
 

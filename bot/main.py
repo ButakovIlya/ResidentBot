@@ -185,7 +185,7 @@ async def save_description(
     # fix with not photo
 
 
-    await all_employees_messenger(files_id, caption, bot)
+    await all_employees_messenger(files_id, caption, bot, logger)
 
     response_msg = get_localized_message("ru", "send_issue_success")
     await bot.send_message(message.from_user.id, response_msg, reply_markup=main_menu_markup)
@@ -397,9 +397,9 @@ async def show_unchecked_tikect(callback_query: types.CallbackQuery, state: FSMC
 async def change_ticket_page(callback_query: types.CallbackQuery, state: FSMContext):
     await change_ticket_page_func(callback_query, state, bot)
     
-@employer_router.callback_query(lambda c: c.data.startswith("issues_"))
-async def show_issues_details(callback_query: types.CallbackQuery, state: FSMContext):
-    await show_issues_details_func(callback_query, state, bot)
+@employer_router.callback_query(lambda c: c.data.startswith("check_ticket_"))
+async def check_ticket(callback_query: types.CallbackQuery, state: FSMContext):
+    await check_ticket_func(callback_query, state, bot)
 
 @employer_router.callback_query(lambda c: c.data.startswith("close_ticket_"))
 async def close_ticket(callback_query: types.CallbackQuery, state: FSMContext):
@@ -532,6 +532,10 @@ async def change_user_meter_page(callback_query: types.CallbackQuery, state: FSM
 @meter_router.callback_query(lambda c: c.data.startswith("check_user_tickets_"))
 async def check_user_tickets(callback_query: types.CallbackQuery, state: FSMContext):
     await check_user_tickets_func(callback_query, state, bot)
+
+@meter_router.callback_query(lambda c: c.data in ['prev_user_ticket_page', 'next_user_ticket_page'])
+async def change_user_ticket_page(callback_query: types.CallbackQuery, state: FSMContext):
+    await change_user_ticket_page_func(callback_query, state, bot)
 
 
 @employer_router.callback_query(lambda c: c.data.startswith("aprove_meter_"))
