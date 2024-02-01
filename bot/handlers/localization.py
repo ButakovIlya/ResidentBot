@@ -42,6 +42,7 @@ class Lang:
             "meter_no_meters":"Показаний на проверку нет!",
             "no_user_meters_to_check":"У данного жителя нет показаний на проверку!",
             "no_user_tickets_to_check":"У данного жителя нет обращений!",
+            "to_many_tickets":"У вас уже есть более двух активных обращений, ожидайте ответа!",
         },
         "en": {
             "start_message": "Hello! This is a bot that allows..."

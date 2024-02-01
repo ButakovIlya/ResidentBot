@@ -45,6 +45,13 @@ def get_all_tickets_by_user_id(user_id) -> list[Ticket]:
     finally:
         Ticket.close_session()
 
+def count_active_tickets_by_user_id(user_id) -> int:
+    try:
+        Ticket.set_session(Session())
+        return Ticket.count_active_tickets_by_user_id(user_id)
+    finally:
+        Ticket.close_session()
+
 def get_solved_tickets() -> list[Ticket]:
     try:
         Ticket.set_session(Session())

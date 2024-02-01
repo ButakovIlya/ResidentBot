@@ -14,12 +14,13 @@ from datetime import datetime
 async def show_unchecked_ticket_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
+    chat_id = callback_query.message.chat.id
     tikect_id = int(callback_query.data.split("_")[1])
     ticket_item = get_ticket_by_id(tikect_id)
 
     if ticket_item:
         tikect_details = f"Тип заявки: {ticket_item.type}\n\nТекст: {ticket_item.details}"
-        await send_ticket_images_to_user(ticket_item, bot, user_id, tikect_details, ticket_item)
+        await send_ticket_images_to_user(bot, tikect_details, ticket_item, chat_id)
     else:
         await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
 
@@ -29,6 +30,7 @@ async def show_unchecked_ticket_func(callback_query, state, bot):
 async def check_ticket_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
+    chat_id = callback_query.message.chat.id
     ticket_id = int(callback_query.data.split("_")[2])
     ticket_item = get_ticket_by_id(ticket_id)
 
@@ -37,7 +39,7 @@ async def check_ticket_func(callback_query, state, bot):
         ticket_details += f"Дата обращения: {ticket_item.date} {ticket_item.time}\n\n"
         is_solved = '✅ Обращение рассмотрено и решено.' if ticket_item.is_solved else '❔ Обращение не решено.'
         ticket_details += is_solved
-        await send_ticket_images_to_employer(ticket_item, bot, user_id, ticket_details, ticket_item)
+        await send_ticket_images_to_employer(ticket_item, bot, user_id, ticket_details, ticket_item, state, chat_id)
     else:
         await bot.send_message(user_id, Lang.strings["ru"]["news_open_info_error"])
 
@@ -66,7 +68,7 @@ async def change_ticket_page_func(callback_query, state, bot):
 async def show_issues_details_func(callback_query, state, bot):
     user_id = callback_query.from_user.id
     message_id = callback_query.message.message_id
-
+    chat_id = callback_query.message.chat.id 
     issues_id = int(callback_query.data.split("_")[1])
     issue_item = get_ticket_by_id(issues_id)
 
@@ -81,7 +83,7 @@ async def show_issues_details_func(callback_query, state, bot):
                             f"Автор заявки: {issue_item.tg_link}"
                         )
        
-        await send_ticket_images_to_employer(issue_item, bot, user_id, issue_details, issue_item)
+        await send_ticket_images_to_employer(state, bot, issue_item, issue_details, chat_id)
     else:
         await bot.send_message(user_id, Lang.strings["ru"]["ticket_open_info_error"])
 

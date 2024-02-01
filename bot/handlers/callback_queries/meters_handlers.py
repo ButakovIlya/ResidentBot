@@ -1,6 +1,6 @@
 from aiogram.fsm.context import FSMContext
 from utils.db_requests import get_meter_by_id, get_all_meters_by_user, aprove_meter_by_id, decline_meter_by_id, is_employer, get_user_by_id
-from handlers.meter_readings import send_user_meters_data_func, get_meter_data, get_meter_data_for_employer, send_meters_data_func
+from handlers.meters import send_user_meters_data_func, get_meter_data, get_meter_data_for_employer, send_meters_data_func
 from handlers.localization import Lang
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.enums import ParseMode
@@ -36,8 +36,8 @@ async def change_all_meters_page_func(callback_query, state:FSMContext, bot):
     await bot.delete_message(user_id, message_id)
 
 
-async def show_meter_by_id_func(callback_query, bot, logger):
-    meter_id = int(str(callback_query.data).split('_')[1])
+async def send_meter_by_user_func(callback_query, bot, logger):
+    meter_id = int(str(callback_query.data).split('_')[2])
     from_user_id = callback_query.from_user.id
     meter = get_meter_by_id(meter_id)
 
@@ -49,6 +49,49 @@ async def show_meter_by_id_func(callback_query, bot, logger):
             return_to_user_button = InlineKeyboardButton(text="Вернуться к жителю", callback_data=f"return_to_user_{meter.user_id}")
             return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"check_user_meters_{meter.user_id}")
             
+            if not meter.has_dependence: meter_buttons.append([decline_meter_button])
+            if not meter.has_dependence: meter_buttons.append([aprove_meter_button]) 
+
+            meter_buttons.append([return_to_user_button])
+            meter_buttons.append([return_to_meter_button])
+            keyboard_markup = InlineKeyboardMarkup(inline_keyboard=meter_buttons)
+
+            meter_data = await get_meter_data_for_employer(meter_id, logger)
+            if meter_data:
+                await bot.send_message(from_user_id, meter_data, reply_markup=keyboard_markup)
+            else:
+                await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
+
+        else:
+            meter_data = await get_meter_data(meter_id, logger)
+            if meter_data:
+                await bot.send_message(from_user_id, meter_data)
+            else:
+                await bot.send_message(from_user_id, Lang.strings["ru"]["user_profile_error"])
+
+        await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
+
+
+async def send_meter_by_type_func(callback_query, bot, logger):
+    meters_type = str(callback_query.data).split('_')[0] or 'all'
+    meter_id = int(str(callback_query.data).split('_')[1])
+    from_user_id = callback_query.from_user.id
+    meter = get_meter_by_id(meter_id)
+
+    if meter:
+        if is_employer(from_user_id):
+            meter_buttons = []
+            aprove_meter_button = InlineKeyboardButton(text=f"Одобрить ✅", callback_data=f"aprove_meter_{meter.meter_readings_id}")
+            decline_meter_button = InlineKeyboardButton(text=f"Отклонить ❌", callback_data=f"decline_meter_{meter.meter_readings_id}")
+            return_to_user_button = InlineKeyboardButton(text="Перейти к жителю", callback_data=f"return_to_user_{meter.user_id}")
+            
+            if meters_type == 'unchecked':
+                return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"return_unchecked_meters")
+            elif meters_type == 'checked':
+                return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"return_checked_meters")
+            else:
+                return_to_meter_button = InlineKeyboardButton(text="Вернуться к показаниям", callback_data=f"return_all_meters")
+
             if not meter.has_dependence: meter_buttons.append([decline_meter_button])
             if not meter.has_dependence: meter_buttons.append([aprove_meter_button]) 
 
@@ -162,7 +205,7 @@ async def check_user_meters_func(callback_query, state, bot):
         for meter_item in meters_on_page:
             is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
             button_text = is_checked + ' ' + f"Показания от {format_datetime(meter_item.datetime)}"
-            callback_data = f"meter_{meter_item.meter_readings_id}"
+            callback_data = f"user_meter_{meter_item.meter_readings_id}"
             
             button = InlineKeyboardButton(text=button_text, callback_data=callback_data)
             buttons.append([button])        

@@ -31,7 +31,7 @@ from dict.problems_dict import problem_texts
 from handlers.contact import contact_uk_handler, extract_problem_description, problem_about_handler
 from handlers.tickets import *
 from handlers.localization import Lang, get_localized_message
-from handlers.meter_readings import meter_router, send_meters_data_func, send_all_meters_to_employer_func
+from handlers.meters import meter_router, send_meters_data_func, send_all_meters_to_employer_func
 from handlers.news import *
 from handlers.users import *
 from handlers.polls import *
@@ -515,9 +515,40 @@ async def change_all_meters_page(callback_query: types.CallbackQuery, state: FSM
     await change_all_meters_page_func(callback_query, state, bot)
 
 
+@meter_router.callback_query(lambda c: c.data.startswith("user_meter_"))
+async def show_meter_details(callback_query: types.CallbackQuery):
+    await send_meter_by_user_func(callback_query, bot, logger)
+
 @meter_router.callback_query(lambda c: c.data.startswith("meter_"))
 async def show_meter_details(callback_query: types.CallbackQuery):
-    await show_meter_by_id_func(callback_query, bot, logger)
+    await send_meter_by_type_func(callback_query, bot, logger)
+
+
+@meter_router.callback_query(lambda c:  c.data.startswith("return_unchecked_meters"))
+async def show_meter_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await send_all_meters_to_employer_func(state, bot, callback_query.from_user.id, False)
+
+@meter_router.callback_query(lambda c:  c.data.startswith("return_checked_meters"))
+async def show_meter_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await send_all_meters_to_employer_func(state, bot, callback_query.from_user.id, True)
+
+@meter_router.callback_query(lambda c:  c.data.startswith("all_meter_"))
+async def show_meter_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await send_all_meters_to_employer_func(state, bot, callback_query.from_user.id)
+
+@meter_router.callback_query(lambda c:  c.data.startswith("all_meter_"))
+async def show_meter_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await send_all_meters_to_employer_func(state, bot, callback_query.from_user.id)
+
+@meter_router.callback_query(lambda c:  c.data.startswith("all_meter_"))
+async def show_meter_details(callback_query: types.CallbackQuery, state: FSMContext):
+    await send_all_meters_to_employer_func(state, bot, callback_query.from_user.id)
+
+@meter_router.callback_query(lambda c:  c.data.startswith("return_unchecked_meters") or
+                                        c.data.startswith("return_checked_meters") or 
+                                        c.data.startswith("return_all_meters"))
+async def show_meter_details(callback_query: types.CallbackQuery):
+    await send_meter_by_type_func(callback_query, bot, logger)
 
 
 @meter_router.callback_query(lambda c: c.data.startswith("check_user_meters_"))

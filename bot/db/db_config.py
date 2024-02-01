@@ -718,7 +718,6 @@ class Ticket(Base):
     @classmethod
     def get_all(cls):
         try:
-            logger.info(f"Запрос на получение всех заявок")
             query = text(f"""
                           SELECT 
                                 ticket.ticket_id,
@@ -762,7 +761,6 @@ class Ticket(Base):
     @classmethod
     def get_solved(cls):
         try:
-            logger.info(f"Запрос на получение всех закрытых заявок")
             query = text(f"""
                           SELECT 
                                 ticket.ticket_id,
@@ -788,7 +786,6 @@ class Ticket(Base):
     @classmethod
     def get_unsolved(cls):
         try:
-            logger.info(f"Запрос на получение всех открытых заявок")
             query = text(f"""
                           SELECT 
                                 ticket.ticket_id,
@@ -812,12 +809,28 @@ class Ticket(Base):
             logger.error(f"Не удалось получить все открытые заявки: {str(e)}")
     
     @classmethod
+    def count_active_tickets_by_user_id(cls, user_id):
+        try:
+            query = text(f"""
+                            SELECT 
+                                count(*) as active_tickets
+                            FROM
+                                resident_bot_db.ticket
+                            WHERE
+                                user_id = {user_id} and is_solved = 0;
+                         """)
+            active_tickets_count = cls.get_session().execute(query).fetchone()
+            return active_tickets_count
+        except Exception as e:
+            logger.error(f"Не удалось получить все открытые заявки: {str(e)}")
+
+    @classmethod
     def get_all_by_user_id_and_status(cls, telegram_id:int, is_solved:int):
         try:
             sql = text(f"""
                           SELECT 
                                 ticket.*,
-                                ticket_type.type,
+                                ticket_type.type
                             FROM
                                 resident_bot_db.ticket
                                     JOIN

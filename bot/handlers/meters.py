@@ -163,7 +163,7 @@ async def send_user_meters_data_func(state: FSMContext, bot, user_id):
         for meter_item in meters_on_page:
             is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
             button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
-            callback_data = f"meter_{meter_item.meter_readings_id}"
+            callback_data = f"user_meter_{meter_item.meter_readings_id}"
             
             button = types.InlineKeyboardButton(text=button_text, callback_data=callback_data)
             buttons.append([button])
@@ -189,14 +189,18 @@ async def send_user_meters_data_func(state: FSMContext, bot, user_id):
 async def send_all_meters_to_employer_func(state: FSMContext, bot, user_id, is_checked=None):
     if is_checked == True:
         all_meters = get_all_checked_meters()
+        meter_type = 'checked_'
     elif is_checked == False:
         all_meters = get_all_unchecked_meters()
+        meter_type = 'unchecked_'
     else: 
         all_meters = get_all_meters()
+        meter_type = 'all_'
 
 
     await state.set_data({
-        'meters_page':0
+        'meters_page':0,
+        'meter_type':meter_type
     })
     
     if all_meters:
@@ -207,8 +211,8 @@ async def send_all_meters_to_employer_func(state: FSMContext, bot, user_id, is_c
         for meter_item in meters_on_page:
             is_checked = '❔' if not meter_item.is_checked else '👍' if meter_item.is_approved else '👎'
             button_text = is_checked + ' ' + f"Показания от {meter_item.datetime}"
-            callback_data = f"meter_{meter_item.meter_readings_id}"
-            
+            callback_data = meter_type + f"meter_{meter_item.meter_readings_id}"
+            print(callback_data)
             button = types.InlineKeyboardButton(text=button_text, callback_data=callback_data)
             buttons.append([button])
 
